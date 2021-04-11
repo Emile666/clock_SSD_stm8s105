@@ -1,0 +1,14 @@
+#ignore all files!
+*.*
+
+#except for these...
+!*/*
+!.gitignore
+!*.c
+!*.h
+!*.ew?
+!*.dep
+!settings
+!Debug/Exe
+!Debug/List
+!Debug/Obj
