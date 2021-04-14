@@ -5,22 +5,19 @@
   Purpose : This files contains all the functions for adding and
             executing tasks in a cooperative (non pre-emptive) way.
   ------------------------------------------------------------------
-  STC1000+ is free software: you can redistribute it and/or modify
+  This is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
  
-  STC1000+ is distributed in the hope that it will be useful,
+  This software is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
   GNU General Public License for more details.
  
   You should have received a copy of the GNU General Public License
-  along with STC1000+.  If not, see <http://www.gnu.org/licenses/>.
-  ------------------------------------------------------------------
-  $Log: $
-  ==================================================================
-*/ 
+  along with This software.  If not, see <http://www.gnu.org/licenses/>.
+  ================================================================== */ 
 #include "scheduler.h"
 #include "uart.h"
       
@@ -50,26 +47,25 @@ void scheduler_init(void)
   ---------------------------------------------------------------------------*/
 void scheduler_isr(void)
 {
-	uint8_t index = 0; // index in task_list struct
-
-	while ((index < MAX_TASKS) && task_list[index].pFunction)
-	{
-		//First go through the initial delay
-		if(task_list[index].Delay > 0)
-		{
-			task_list[index].Delay--;
-		} // if
-		else
-		{	//now we decrement the actual period counter 
-			task_list[index].Counter--;
-			if(task_list[index].Counter == 0)
-			{
-				//Set the flag and reset the counter;
-				task_list[index].Status |= TASK_READY;
-			} // if
-		} // else
-		index++;
-	} // while
+    uint8_t index = 0; // index in task_list struct
+    
+    while ((index < MAX_TASKS) && task_list[index].pFunction)
+    {
+        //First go through the initial delay
+        if(task_list[index].Delay > 0)
+        {
+            task_list[index].Delay--;
+        } // if
+        else
+        {   //now we decrement the actual period counter 
+            task_list[index].Counter--;
+            if(task_list[index].Counter == 0)
+            {   //Set the flag and reset the counter;
+                task_list[index].Status |= TASK_READY;
+            } // if
+        } // else
+        index++;
+    } // while
 } // scheduler_isr()
 
 /*-----------------------------------------------------------------------------
@@ -80,31 +76,31 @@ void scheduler_isr(void)
   ---------------------------------------------------------------------------*/
 void dispatch_tasks(void)
 {
-	uint8_t index = 0;
-	uint32_t time1; // Measured #clock-ticks of 50 usec. (TMR1 frequency)
-	uint32_t time2;
-
-	//go through the active tasks
-	while ((index < MAX_TASKS) && task_list[index].pFunction)
-	{
-		if((task_list[index].Status & (TASK_READY | TASK_ENABLED)) == (TASK_READY | TASK_ENABLED))
-		{
-			time1 = millis(); // Read msec. timer
-			task_list[index].pFunction(); // run the task
-			task_list[index].Status  &= ~TASK_READY; // reset the task when finished
-			task_list[index].Counter  = task_list[index].Period; // reset counter
-			time2 = millis(); // read msec. timer
-			if (time2 < time1) time2 += UINT32_MAX - time1; // overflows every 49.7 days, unlikely
-			else               time2 -= time1; 
-			task_list[index].Duration  = (uint16_t)time2; // time difference in milliseconds
-			if (time2 > task_list[index].Duration_Max)
-			{
-				task_list[index].Duration_Max = time2;
-			} // if
-		} // if
-		index++;
-	} // while
-	//go to sleep till next tick!
+    uint8_t index = 0;
+    uint32_t time1; // Measured #clock-ticks of 50 usec. (TMR1 frequency)
+    uint32_t time2;
+    
+    //go through the active tasks
+    while ((index < MAX_TASKS) && task_list[index].pFunction)
+    {
+        if((task_list[index].Status & (TASK_READY | TASK_ENABLED)) == (TASK_READY | TASK_ENABLED))
+        {
+            time1 = millis(); // Read msec. timer
+            task_list[index].pFunction(); // run the task
+            task_list[index].Status  &= ~TASK_READY; // reset the task when finished
+            task_list[index].Counter  = task_list[index].Period; // reset counter
+            time2 = millis(); // read msec. timer
+            if (time2 < time1) time2 += UINT32_MAX - time1; // overflows every 49.7 days, unlikely
+            else               time2 -= time1; 
+            task_list[index].Duration  = (uint16_t)time2; // time difference in milliseconds
+            if (time2 > task_list[index].Duration_Max)
+            {
+                task_list[index].Duration_Max = time2;
+            } // if
+        } // if
+        index++;
+    } // while
+    //go to sleep till next tick!
 } // dispatch_tasks()
 
 /*-----------------------------------------------------------------------------
@@ -117,29 +113,29 @@ void dispatch_tasks(void)
   ---------------------------------------------------------------------------*/
 uint8_t add_task(void (*task_ptr)(), char *Name, uint16_t delay, uint16_t period)
 {
-	uint8_t  index = 0;
-	uint16_t temp1 = (uint16_t)(delay  * TICKS_PER_SEC / 1000);
-	uint16_t temp2 = (uint16_t)(period * TICKS_PER_SEC / 1000);
-
-	if (max_tasks >= MAX_TASKS) return ERR_MAX_TASKS;
-	//go through the active tasks
-	while ((index < MAX_TASKS) && task_list[index].Period) index++;
-        if (index >= MAX_TASKS) return ERR_MAX_TASKS;
-
-	if (task_list[index].Period == 0)
-	{
-		task_list[index].pFunction    = task_ptr;       // Pointer to Function
-		task_list[index].Period       = temp2;          // Period in msec.
-		task_list[index].Counter      = temp2;	        // Countdown timer
-		task_list[index].Delay        = temp1;          // Initial delay before start
-		task_list[index].Status      |= TASK_ENABLED;   // Enable task by default
-		task_list[index].Status      &= ~TASK_READY;    // Task not ready to run
-		task_list[index].Duration     = 0;              // Actual Task Duration
-		task_list[index].Duration_Max = 0;              // Max. Task Duration
-		strncpy(task_list[index].Name, Name, NAME_LEN); // Name of Task
-		max_tasks++; // increase number of tasks
-	} // if
-	return NO_ERR;
+    uint8_t  index = 0;
+    uint16_t temp1 = (uint16_t)(delay  * TICKS_PER_SEC / 1000);
+    uint16_t temp2 = (uint16_t)(period * TICKS_PER_SEC / 1000);
+    
+    if (max_tasks >= MAX_TASKS) return ERR_MAX_TASKS;
+    //go through the active tasks
+    while ((index < MAX_TASKS) && task_list[index].Period) index++;
+    if (index >= MAX_TASKS) return ERR_MAX_TASKS;
+    
+    if (task_list[index].Period == 0)
+    {
+        task_list[index].pFunction    = task_ptr;       // Pointer to Function
+        task_list[index].Period       = temp2;          // Period in msec.
+        task_list[index].Counter      = temp2;	        // Countdown timer
+        task_list[index].Delay        = temp1;          // Initial delay before start
+        task_list[index].Status      |= TASK_ENABLED;   // Enable task by default
+        task_list[index].Status      &= ~TASK_READY;    // Task not ready to run
+        task_list[index].Duration     = 0;              // Actual Task Duration
+        task_list[index].Duration_Max = 0;              // Max. Task Duration
+        strncpy(task_list[index].Name, Name, NAME_LEN); // Name of Task
+        max_tasks++; // increase number of tasks
+    } // if
+    return NO_ERR;
 } // add_task()
 
 /*-----------------------------------------------------------------------------
@@ -149,26 +145,26 @@ uint8_t add_task(void (*task_ptr)(), char *Name, uint16_t delay, uint16_t period
   ---------------------------------------------------------------------------*/
 uint8_t enable_task(char *Name)
 {
-	uint8_t index = 0;
-	bool    found = false;
-	
-	//go through the active tasks
-	if(task_list[index].Period != 0)
-	{
-		while ((task_list[index].Period != 0) && !found)
-		{
-			if (!strcmp(task_list[index].Name,Name))
-			{
-				task_list[index].Status |= TASK_ENABLED;
-				found = true;
-			} // if
-			index++;
-		} // while
-	} // if
-	else return ERR_EMPTY;
-	if (!found)
-	     return ERR_NAME;
-	else return NO_ERR;	
+    uint8_t index = 0;
+    bool    found = false;
+    
+    //go through the active tasks
+    if(task_list[index].Period != 0)
+    {
+        while ((task_list[index].Period != 0) && !found)
+        {
+            if (!strcmp(task_list[index].Name,Name))
+            {
+                task_list[index].Status |= TASK_ENABLED;
+                found = true;
+            } // if
+            index++;
+        } // while
+    } // if
+    else return ERR_EMPTY;
+    if (!found)
+        return ERR_NAME;
+    else return NO_ERR;	
 } // enable_task()
 
 /*-----------------------------------------------------------------------------
@@ -178,26 +174,26 @@ uint8_t enable_task(char *Name)
   ---------------------------------------------------------------------------*/
 uint8_t disable_task(char *Name)
 {
-	uint8_t index = 0;
-	bool    found = false;
-	
-	//go through the active tasks
-	if(task_list[index].Period != 0)
-	{
-            while ((task_list[index].Period != 0) && !found)
+    uint8_t index = 0;
+    bool    found = false;
+    
+    //go through the active tasks
+    if(task_list[index].Period != 0)
+    {
+        while ((task_list[index].Period != 0) && !found)
+        {
+            if (!strcmp(task_list[index].Name,Name))
             {
-                if (!strcmp(task_list[index].Name,Name))
-		{
-                    task_list[index].Status &= ~TASK_ENABLED;
-                    found = true;
-		} // if
-		index++;
-            } // while
-	} // if
-	else return ERR_EMPTY;
-	if (!found)
-	     return ERR_NAME;
-	else return NO_ERR;	
+                task_list[index].Status &= ~TASK_ENABLED;
+                found = true;
+            } // if
+            index++;
+        } // while
+    } // if
+    else return ERR_EMPTY;
+    if (!found)
+        return ERR_NAME;
+    else return NO_ERR;	
 } // disable_task()
 
 /*-----------------------------------------------------------------------------
@@ -208,26 +204,26 @@ uint8_t disable_task(char *Name)
   ---------------------------------------------------------------------------*/
 uint8_t set_task_time_period(uint16_t Period, char *Name)
 {
-	uint8_t index = 0;
-	bool    found = false;
-	
-	//go through the active tasks
-	if(task_list[index].Period != 0)
-	{
-		while ((task_list[index].Period != 0) && !found)
-		{
-			if (!strcmp(task_list[index].Name,Name))
-			{
-				task_list[index].Period = (uint16_t)(Period * TICKS_PER_SEC / 1000);
-				found = true;
-			} // if
-			index++;
-		} // while
-	} // if
-	else return ERR_EMPTY;
-	if (!found)
-	     return ERR_NAME;
-	else return NO_ERR;	
+    uint8_t index = 0;
+    bool    found = false;
+    
+    //go through the active tasks
+    if(task_list[index].Period != 0)
+    {
+        while ((task_list[index].Period != 0) && !found)
+        {
+            if (!strcmp(task_list[index].Name,Name))
+            {
+                task_list[index].Period = (uint16_t)(Period * TICKS_PER_SEC / 1000);
+                found = true;
+            } // if
+            index++;
+        } // while
+    } // if
+    else return ERR_EMPTY;
+    if (!found)
+        return ERR_NAME;
+    else return NO_ERR;	
 } // set_task_time_period()
 
 /*-----------------------------------------------------------------------------
@@ -237,22 +233,22 @@ uint8_t set_task_time_period(uint16_t Period, char *Name)
   ---------------------------------------------------------------------------*/
 void list_all_tasks(void)
 {
-	uint8_t index = 0;
-	char    s[50];
-
-	uart_printf("Task-Name,T(ms),Stat,T(ms),M(ms)\n");
-	//go through the active tasks
-	if(task_list[index].Period != 0)
-	{
-		while ((index < MAX_TASKS) && (task_list[index].Period != 0))
-		{
-                    uart_printf(task_list[index].Name);
+    uint8_t index = 0;
+    char    s[50];
+    
+    uart_printf("Task-Name,T(ms),Stat,T(ms),M(ms)\n");
+    //go through the active tasks
+    if(task_list[index].Period != 0)
+    {
+        while ((index < MAX_TASKS) && (task_list[index].Period != 0))
+        {
+            uart_printf(task_list[index].Name);
             
-		    sprintf(s,",%d,0x%x,%d,%d\n", 
+            sprintf(s,",%d,0x%x,%d,%d\n", 
                     task_list[index].Period  , (uint16_t)task_list[index].Status, 
-					  task_list[index].Duration, task_list[index].Duration_Max);
-                    uart_printf(s);
-		    index++;
-		} // while
-	} // if
+                    task_list[index].Duration, task_list[index].Duration_Max);
+            uart_printf(s);
+            index++;
+        } // while
+    } // if
 } // list_all_tasks()

@@ -1,34 +1,31 @@
+#ifndef _SCHEDULER_H
+#define _SCHEDULER_H
 /*==================================================================
   File Name    : scheduler.h
   Author       : Emile
   ------------------------------------------------------------------
   Purpose : This is the header-file for scheduler.c
   ------------------------------------------------------------------
-  STC1000+ is free software: you can redistribute it and/or modify
+  This is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
  
-  STC1000+ is distributed in the hope that it will be useful,
+  This software is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
   GNU General Public License for more details.
  
   You should have received a copy of the GNU General Public License
-  along with STC1000+.  If not, see <http://www.gnu.org/licenses/>.
-  ------------------------------------------------------------------
-  $Log: scheduler.h,v $
-  ==================================================================
-*/ 
-#ifndef _SCHEDULER_H
-#define _SCHEDULER_H
+  along with this software.  If not, see <http://www.gnu.org/licenses/>.
+  ================================================================== */ 
 
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
 
-#define MAX_TASKS	  (3)
+#define MAX_TASKS	  (4)
 #define MAX_MSEC      (60000)
 #define TICKS_PER_SEC (1000L)
 #define NAME_LEN         (12) 

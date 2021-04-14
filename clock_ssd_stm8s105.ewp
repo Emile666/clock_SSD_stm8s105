@@ -74,11 +74,11 @@
                 <option>
                     <name>GenLibOutFormatter</name>
                     <version>0</version>
-                    <state>7</state>
+                    <state>2</state>
                 </option>
                 <option>
                     <name>GenLibOutFormatterDescription</name>
-                    <state>No specifier a or A, no specifier n, no float, no flags.</state>
+                    <state>Full formatting, without multibytes.</state>
                 </option>
                 <option>
                     <name>GenStackSize</name>
@@ -606,7 +606,7 @@
                 </option>
                 <option>
                     <name>IlinkIcfFile</name>
-                    <state>$TOOLKIT_DIR$\config\lnkstm8s103f3.icf</state>
+                    <state>$TOOLKIT_DIR$\config\lnkstm8s105c6.icf</state>
                 </option>
                 <option>
                     <name>IlinkIcfFileSlave</name>

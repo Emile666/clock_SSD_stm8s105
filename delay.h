@@ -8,5 +8,7 @@
 uint32_t millis(void);
 void     delay_msec(uint16_t ms);
 void     delay_usec(uint16_t us);
+uint16_t tmr2_val(void);
+uint16_t tmr3_val(void);
 
 #endif

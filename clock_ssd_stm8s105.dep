@@ -1,151 +1,122 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project>
     <fileVersion>2</fileVersion>
-    <fileChecksum>2105605178</fileChecksum>
+    <fileChecksum>3954110492</fileChecksum>
     <configuration>
         <name>Debug</name>
         <outputs>
-            <file>$TOOLKIT_DIR$\inc\c\wchar.h</file>
-            <file>$PROJ_DIR$\Debug\List\delay.s</file>
-            <file>$TOOLKIT_DIR$\lib\dlstm8smn.h</file>
-            <file>$TOOLKIT_DIR$\inc\c\xtls.h</file>
-            <file>$TOOLKIT_DIR$\inc\c\DLib_Threads.h</file>
-            <file>$TOOLKIT_DIR$\inc\c\stdbool.h</file>
-            <file>$TOOLKIT_DIR$\inc\c\DLib_Defaults.h</file>
-            <file>$TOOLKIT_DIR$\inc\c\intrinsics.h</file>
-            <file>$TOOLKIT_DIR$\inc\c\ctype.h</file>
-            <file>$TOOLKIT_DIR$\inc\c\yvals.h</file>
-            <file>$TOOLKIT_DIR$\inc\c\xlocale.h</file>
-            <file>$TOOLKIT_DIR$\inc\c\stdlib.h</file>
-            <file>$TOOLKIT_DIR$\inc\c\xencoding_limits.h</file>
-            <file>$TOOLKIT_DIR$\inc\c\DLib_Product.h</file>
-            <file>$TOOLKIT_DIR$\inc\c\xlocaleuse.h</file>
-            <file>$TOOLKIT_DIR$\inc\c\xmtx.h</file>
-            <file>$PROJ_DIR$\Debug\List\scheduler.lst</file>
-            <file>$TOOLKIT_DIR$\inc\iostm8s105c6.h</file>
-            <file>$PROJ_DIR$\Debug\List\i2c_ds3231_bb.lst</file>
-            <file>$TOOLKIT_DIR$\inc\c\stdio.h</file>
-            <file>$TOOLKIT_DIR$\inc\c\ycheck.h</file>
-            <file>$TOOLKIT_DIR$\inc\io_macros.h</file>
-            <file>$TOOLKIT_DIR$\inc\c\stdint.h</file>
-            <file>$PROJ_DIR$\Debug\List\main.lst</file>
-            <file>$PROJ_DIR$\Debug\List\delay.lst</file>
-            <file>$TOOLKIT_DIR$\inc\c\string.h</file>
-            <file>$TOOLKIT_DIR$\config\lnkstm8s105c6.icf</file>
-            <file>$PROJ_DIR$\Debug\List\i2c_bb.lst</file>
-            <file>$PROJ_DIR$\Debug\List\main.s</file>
-            <file>$TOOLKIT_DIR$\inc\c\xlocale_c.h</file>
-            <file>$TOOLKIT_DIR$\inc\c\ystdio.h</file>
-            <file>$TOOLKIT_DIR$\inc\c\ysizet.h</file>
-            <file>$PROJ_DIR$\delay.c</file>
-            <file>$PROJ_DIR$\eep.c</file>
-            <file>$PROJ_DIR$\delay.h</file>
-            <file>$PROJ_DIR$\eep.h</file>
-            <file>$PROJ_DIR$\i2c_bb.c</file>
-            <file>$PROJ_DIR$\i2c_bb.h</file>
             <file>$PROJ_DIR$\i2c_ds3231_bb.c</file>
+            <file>$PROJ_DIR$\i2c_bb.c</file>
+            <file>$PROJ_DIR$\main.h</file>
+            <file>$PROJ_DIR$\delay.c</file>
+            <file>$PROJ_DIR$\eep.h</file>
+            <file>$PROJ_DIR$\delay.h</file>
+            <file>$PROJ_DIR$\i2c_bb.h</file>
+            <file>$PROJ_DIR$\ring_buffer.h</file>
+            <file>$PROJ_DIR$\eep.c</file>
             <file>$PROJ_DIR$\i2c_ds3231_bb.h</file>
             <file>$PROJ_DIR$\main.c</file>
-            <file>$PROJ_DIR$\main.h</file>
-            <file>$PROJ_DIR$\ring_buffer.h</file>
             <file>$PROJ_DIR$\scheduler.c</file>
             <file>$PROJ_DIR$\scheduler.h</file>
             <file>$PROJ_DIR$\uart.c</file>
             <file>$PROJ_DIR$\uart.h</file>
-            <file>$PROJ_DIR$\Debug\List\i2c_ds3231_bb.s</file>
-            <file>$PROJ_DIR$\Debug\Obj\i2c_ds3231_bb.pbi</file>
-            <file>$PROJ_DIR$\Debug\Obj\main.pbi</file>
-            <file>$PROJ_DIR$\Debug\Obj\delay.__cstat.et</file>
-            <file>$PROJ_DIR$\Debug\List\uart.s</file>
+            <file>$PROJ_DIR$\IRremote.c</file>
             <file>$PROJ_DIR$\Debug\Obj\delay.o</file>
-            <file>$PROJ_DIR$\Debug\List\i2c_bb.s</file>
-            <file>$PROJ_DIR$\Debug\Obj\scheduler.pbi</file>
-            <file>$PROJ_DIR$\Debug\Obj\main.__cstat.et</file>
-            <file>$PROJ_DIR$\Debug\Obj\uart.__cstat.et</file>
-            <file>$PROJ_DIR$\Debug\Obj\eep.__cstat.et</file>
+            <file>$PROJ_DIR$\Debug\Obj\IRremote.o</file>
+            <file>$PROJ_DIR$\Debug\Obj\IRremote.pbi</file>
+            <file>$TOOLKIT_DIR$\inc\c\xmtx.h</file>
+            <file>$PROJ_DIR$\Debug\List\main.s</file>
             <file>$PROJ_DIR$\Debug\Obj\delay.pbi</file>
-            <file>$PROJ_DIR$\Debug\Obj\i2c_bb.pbi</file>
-            <file>$PROJ_DIR$\Debug\List\eep.lst</file>
-            <file>$PROJ_DIR$\Debug\List\scheduler.s</file>
-            <file>$PROJ_DIR$\Debug\List\eep.s</file>
-            <file>$PROJ_DIR$\Debug\Obj\main.o</file>
-            <file>$PROJ_DIR$\Debug\Obj\scheduler.__cstat.et</file>
-            <file>$PROJ_DIR$\Debug\Obj\eep.pbi</file>
-            <file>$PROJ_DIR$\Debug\Exe\clock_ssd_stm8s105.out</file>
-            <file>$PROJ_DIR$\Debug\Obj\scheduler.o</file>
-            <file>$PROJ_DIR$\Debug\Obj\uart.o</file>
-            <file>$PROJ_DIR$\Debug\Obj\i2c_ds3231_bb.__cstat.et</file>
             <file>$PROJ_DIR$\Debug\Obj\uart.pbi</file>
-            <file>$PROJ_DIR$\Debug\Obj\i2c_ds3231_bb.o</file>
-            <file>$PROJ_DIR$\Debug\List\uart.lst</file>
-            <file>$PROJ_DIR$\Debug\Obj\i2c_bb.__cstat.et</file>
-            <file>$PROJ_DIR$\Debug\Obj\clock_ssd_stm8s105.pbd</file>
-            <file>$TOOLKIT_DIR$\lib\dlstm8smn.a</file>
-            <file>$PROJ_DIR$\Debug\Obj\i2c_bb.o</file>
-            <file>$PROJ_DIR$\Debug\List\clock_ssd_stm8s105.map</file>
-            <file>$PROJ_DIR$\Debug\Obj\eep.o</file>
+            <file>$PROJ_DIR$\Debug\Obj\scheduler.o</file>
+            <file>$PROJ_DIR$\Debug\List\delay.lst</file>
+            <file>$TOOLKIT_DIR$\inc\c\ycheck.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\stdlib.h</file>
+            <file>$TOOLKIT_DIR$\lib\dlstm8smn.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\ctype.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\string.h</file>
+            <file>$TOOLKIT_DIR$\inc\io_macros.h</file>
             <file>$TOOLKIT_DIR$\lib\dbgstm8smd.a</file>
+            <file>$TOOLKIT_DIR$\inc\c\DLib_Product.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\ystdio.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\stdint.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\DLib_Defaults.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\yvals.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\xtls.h</file>
+            <file>$PROJ_DIR$\Debug\List\main.lst</file>
+            <file>$TOOLKIT_DIR$\inc\c\stdio.h</file>
+            <file>$PROJ_DIR$\IRremote.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\DLib_Threads.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\xlocale.h</file>
+            <file>$TOOLKIT_DIR$\inc\iostm8s105c6.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\xencoding_limits.h</file>
+            <file>$PROJ_DIR$\Debug\Obj\i2c_bb.pbi</file>
+            <file>$TOOLKIT_DIR$\inc\c\intrinsics.h</file>
+            <file>$PROJ_DIR$\Debug\List\scheduler.lst</file>
+            <file>$PROJ_DIR$\Debug\List\delay.s</file>
+            <file>$PROJ_DIR$\Debug\List\i2c_ds3231_bb.s</file>
+            <file>$PROJ_DIR$\Debug\List\i2c_ds3231_bb.lst</file>
+            <file>$TOOLKIT_DIR$\config\lnkstm8s105c6.icf</file>
+            <file>$TOOLKIT_DIR$\inc\c\stdbool.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\ysizet.h</file>
+            <file>$PROJ_DIR$\Debug\List\i2c_bb.lst</file>
+            <file>$TOOLKIT_DIR$\inc\c\xlocaleuse.h</file>
+            <file>$PROJ_DIR$\Debug\Obj\i2c_ds3231_bb.pbi</file>
+            <file>$TOOLKIT_DIR$\inc\c\xlocale_c.h</file>
+            <file>$PROJ_DIR$\Debug\Obj\eep.pbi</file>
+            <file>$PROJ_DIR$\Debug\Obj\i2c_bb.o</file>
+            <file>$PROJ_DIR$\Debug\Obj\i2c_bb.__cstat.et</file>
+            <file>$PROJ_DIR$\Debug\Obj\delay.__cstat.et</file>
+            <file>$PROJ_DIR$\Debug\List\uart.lst</file>
+            <file>$PROJ_DIR$\Debug\Obj\eep.o</file>
+            <file>$PROJ_DIR$\Debug\Obj\scheduler.pbi</file>
+            <file>$PROJ_DIR$\Debug\List\eep.s</file>
+            <file>$PROJ_DIR$\Debug\List\eep.lst</file>
+            <file>$PROJ_DIR$\Debug\List\uart.s</file>
+            <file>$PROJ_DIR$\Debug\Obj\main.o</file>
+            <file>$PROJ_DIR$\Debug\List\IRremote.s</file>
+            <file>$PROJ_DIR$\Debug\Obj\i2c_ds3231_bb.o</file>
+            <file>$PROJ_DIR$\Debug\List\i2c_bb.s</file>
+            <file>$PROJ_DIR$\Debug\List\IRremote.lst</file>
+            <file>$PROJ_DIR$\Debug\Obj\main.__cstat.et</file>
+            <file>$TOOLKIT_DIR$\inc\c\wchar.h</file>
+            <file>$PROJ_DIR$\Debug\List\clock_ssd_stm8s105.map</file>
+            <file>$PROJ_DIR$\Debug\Obj\IRremote.__cstat.et</file>
+            <file>$PROJ_DIR$\Debug\Obj\main.pbi</file>
+            <file>$PROJ_DIR$\Debug\Obj\i2c_ds3231_bb.__cstat.et</file>
+            <file>$PROJ_DIR$\Debug\Obj\uart.o</file>
+            <file>$PROJ_DIR$\Debug\Obj\scheduler.__cstat.et</file>
+            <file>$TOOLKIT_DIR$\lib\dlstm8smn.a</file>
+            <file>$PROJ_DIR$\Debug\Obj\clock_ssd_stm8s105.pbd</file>
+            <file>$PROJ_DIR$\Debug\Obj\eep.__cstat.et</file>
+            <file>$PROJ_DIR$\Debug\List\scheduler.s</file>
+            <file>$PROJ_DIR$\Debug\Exe\clock_ssd_stm8s105.out</file>
+            <file>$PROJ_DIR$\Debug\Obj\uart.__cstat.et</file>
         </outputs>
         <file>
-            <name>[ROOT_NODE]</name>
+            <name>$PROJ_DIR$\i2c_ds3231_bb.c</name>
             <outputs>
-                <tool>
-                    <name>ILINK</name>
-                    <file> 66 77</file>
-                </tool>
-            </outputs>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\delay.c</name>
-            <outputs>
-                <tool>
-                    <name>ICCSTM8</name>
-                    <file> 1 24 52</file>
-                </tool>
                 <tool>
                     <name>BICOMP</name>
-                    <file> 58</file>
+                    <file> 56</file>
                 </tool>
                 <tool>
                     <name>__cstat</name>
-                    <file> 50</file>
+                    <file> 78</file>
+                </tool>
+                <tool>
+                    <name>ICCSTM8</name>
+                    <file> 49 50 70</file>
                 </tool>
             </outputs>
             <inputs>
                 <tool>
-                    <name>ICCSTM8</name>
-                    <file> 41 17 21 7 22 20 9 6 2 13 12 4 19 31 30 11 5 8 10 3 15 14 29 0 34</file>
-                </tool>
-                <tool>
                     <name>BICOMP</name>
-                    <file> 11 20 2 17 9 34 22 8 21 12 14 31 7 19 5 13 30 3 15 41 6 4 10 29 0</file>
+                    <file> 44 32 25 39 34 36 42 52 5 27 46 33 57 26 74 53 9 2 35 41 43 28 30 6 37 55 19</file>
                 </tool>
-            </inputs>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\eep.c</name>
-            <outputs>
                 <tool>
                     <name>ICCSTM8</name>
-                    <file> 62 60 78</file>
-                </tool>
-                <tool>
-                    <name>BICOMP</name>
-                    <file> 65</file>
-                </tool>
-                <tool>
-                    <name>__cstat</name>
-                    <file> 57</file>
-                </tool>
-            </outputs>
-            <inputs>
-                <tool>
-                    <name>ICCSTM8</name>
-                    <file> 41 17 21 7 22 20 9 6 2 13 12 4 19 31 30 11 5 8 10 3 15 14 29 0 35</file>
-                </tool>
-                <tool>
-                    <name>BICOMP</name>
-                    <file> 7 31 5 9 10 19 21 6 20 29 11 0 35 17 22 8 4 41 12 2 13 30 3 14 15</file>
+                    <file> 6 52 46 34 25 36 35 27 32 44 41 2 43 30 39 53 33 26 28 42 37 19 55 57 74 5 9</file>
                 </tool>
             </inputs>
         </file>
@@ -153,53 +124,80 @@
             <name>$PROJ_DIR$\i2c_bb.c</name>
             <outputs>
                 <tool>
-                    <name>ICCSTM8</name>
-                    <file> 53 27 76</file>
-                </tool>
-                <tool>
                     <name>BICOMP</name>
-                    <file> 59</file>
+                    <file> 45</file>
                 </tool>
                 <tool>
                     <name>__cstat</name>
-                    <file> 73</file>
+                    <file> 60</file>
+                </tool>
+                <tool>
+                    <name>ICCSTM8</name>
+                    <file> 71 54 59</file>
                 </tool>
             </outputs>
             <inputs>
                 <tool>
-                    <name>ICCSTM8</name>
-                    <file> 37 5 7 22 20 9 6 2 13 12 4 41 17 21 19 31 30 11 8 10 3 15 14 29 0 34</file>
+                    <name>BICOMP</name>
+                    <file> 30 43 2 35 36 26 42 46 41 34 28 33 57 74 53 52 5 25 44 27 32 39 6 37 55 19</file>
                 </tool>
                 <tool>
-                    <name>BICOMP</name>
-                    <file> 17 41 6 9 11 10 7 4 22 8 30 29 0 31 5 34 20 12 2 13 19 21 37 3 14 15</file>
+                    <name>ICCSTM8</name>
+                    <file> 6 52 46 34 25 36 35 27 32 44 41 2 43 30 39 53 33 26 28 42 37 19 55 57 74 5</file>
                 </tool>
             </inputs>
         </file>
         <file>
-            <name>$PROJ_DIR$\i2c_ds3231_bb.c</name>
+            <name>$PROJ_DIR$\delay.c</name>
             <outputs>
                 <tool>
-                    <name>ICCSTM8</name>
-                    <file> 47 18 71</file>
-                </tool>
-                <tool>
                     <name>BICOMP</name>
-                    <file> 48</file>
+                    <file> 21</file>
                 </tool>
                 <tool>
                     <name>__cstat</name>
-                    <file> 69</file>
+                    <file> 61</file>
+                </tool>
+                <tool>
+                    <name>ICCSTM8</name>
+                    <file> 48 24 16</file>
                 </tool>
             </outputs>
             <inputs>
                 <tool>
-                    <name>ICCSTM8</name>
-                    <file> 37 5 7 22 20 9 6 2 13 12 4 41 17 21 19 31 30 11 8 10 3 15 14 29 0 34 39</file>
+                    <name>BICOMP</name>
+                    <file> 44 26 55 43 25 53 5 34 28 27 36 46 39 52 30 32 33 37 19 2 35 41 42 57 74</file>
                 </tool>
                 <tool>
+                    <name>ICCSTM8</name>
+                    <file> 2 43 30 46 34 25 36 35 27 32 44 41 39 53 33 26 52 28 42 37 19 55 57 74 5</file>
+                </tool>
+            </inputs>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\eep.c</name>
+            <outputs>
+                <tool>
                     <name>BICOMP</name>
-                    <file> 12 13 22 20 19 9 21 5 34 2 7 39 41 6 4 17 11 8 30 10 29 0 31 37 3 14 15</file>
+                    <file> 58</file>
+                </tool>
+                <tool>
+                    <name>__cstat</name>
+                    <file> 83</file>
+                </tool>
+                <tool>
+                    <name>ICCSTM8</name>
+                    <file> 65 66 63</file>
+                </tool>
+            </outputs>
+            <inputs>
+                <tool>
+                    <name>BICOMP</name>
+                    <file> 46 53 52 36 42 39 35 25 57 26 74 4 43 34 28 30 41 2 44 27 32 33 37 55 19</file>
+                </tool>
+                <tool>
+                    <name>ICCSTM8</name>
+                    <file> 2 43 30 46 34 25 36 35 27 32 44 41 39 53 33 26 52 28 42 37 19 55 57 74 4</file>
                 </tool>
             </inputs>
         </file>
@@ -207,26 +205,26 @@
             <name>$PROJ_DIR$\main.c</name>
             <outputs>
                 <tool>
-                    <name>ICCSTM8</name>
-                    <file> 28 23 63</file>
-                </tool>
-                <tool>
                     <name>BICOMP</name>
-                    <file> 49</file>
+                    <file> 77</file>
                 </tool>
                 <tool>
                     <name>__cstat</name>
-                    <file> 55</file>
+                    <file> 73</file>
+                </tool>
+                <tool>
+                    <name>ICCSTM8</name>
+                    <file> 20 38 68</file>
                 </tool>
             </outputs>
             <inputs>
                 <tool>
-                    <name>ICCSTM8</name>
-                    <file> 41 17 21 7 22 20 9 6 2 13 12 4 19 31 30 11 5 8 10 3 15 14 29 0 34 44 25 37 39 46 35</file>
+                    <name>BICOMP</name>
+                    <file> 36 25 53 52 46 44 55 9 41 39 12 4 30 35 33 37 19 5 34 6 14 43 26 28 27 32 42 57 74 2 29</file>
                 </tool>
                 <tool>
-                    <name>BICOMP</name>
-                    <file> 11 4 20 34 39 9 22 44 35 17 12 14 31 19 5 37 46 8 21 6 30 3 15 41 7 2 13 10 29 0 25</file>
+                    <name>ICCSTM8</name>
+                    <file> 2 43 30 46 34 25 36 35 27 32 44 41 39 53 33 26 52 28 42 37 19 55 57 74 5 12 29 6 9 14 4</file>
                 </tool>
             </inputs>
         </file>
@@ -234,26 +232,26 @@
             <name>$PROJ_DIR$\scheduler.c</name>
             <outputs>
                 <tool>
-                    <name>ICCSTM8</name>
-                    <file> 61 16 67</file>
-                </tool>
-                <tool>
                     <name>BICOMP</name>
-                    <file> 54</file>
+                    <file> 64</file>
                 </tool>
                 <tool>
                     <name>__cstat</name>
-                    <file> 64</file>
+                    <file> 80</file>
+                </tool>
+                <tool>
+                    <name>ICCSTM8</name>
+                    <file> 84 47 23</file>
                 </tool>
             </outputs>
             <inputs>
                 <tool>
-                    <name>ICCSTM8</name>
-                    <file> 44 22 20 9 6 2 13 12 4 5 25 31 19 30 46 7 41 17 21 11 8 10 3 15 14 29 0</file>
+                    <name>BICOMP</name>
+                    <file> 29 53 52 25 44 32 36 33 46 34 27 39 55 14 35 41 2 43 26 28 30 37 19 12 42 57 74</file>
                 </tool>
                 <tool>
-                    <name>BICOMP</name>
-                    <file> 25 31 5 20 12 13 9 30 7 22 2 19 21 14 46 6 4 41 17 11 8 3 15 44 10 29 0</file>
+                    <name>ICCSTM8</name>
+                    <file> 12 34 25 36 35 27 32 44 41 52 29 53 39 33 14 46 2 43 30 26 28 42 37 19 55 57 74</file>
                 </tool>
             </inputs>
         </file>
@@ -261,41 +259,77 @@
             <name>$PROJ_DIR$\uart.c</name>
             <outputs>
                 <tool>
-                    <name>ICCSTM8</name>
-                    <file> 51 72 68</file>
-                </tool>
-                <tool>
                     <name>BICOMP</name>
-                    <file> 70</file>
+                    <file> 22</file>
                 </tool>
                 <tool>
                     <name>__cstat</name>
-                    <file> 56</file>
+                    <file> 86</file>
+                </tool>
+                <tool>
+                    <name>ICCSTM8</name>
+                    <file> 67 62 79</file>
                 </tool>
             </outputs>
             <inputs>
                 <tool>
-                    <name>ICCSTM8</name>
-                    <file> 19 20 9 6 2 13 12 4 31 30 34 22 46 7 5 41 17 21 11 8 10 3 15 14 29 0 42</file>
+                    <name>BICOMP</name>
+                    <file> 36 27 25 46 55 34 52 14 33 44 32 2 39 53 5 7 35 41 43 26 28 30 37 19 42 57 74</file>
                 </tool>
                 <tool>
-                    <name>BICOMP</name>
-                    <file> 9 22 2 20 5 14 7 46 30 12 13 41 19 21 31 34 42 6 4 17 11 8 3 15 10 29 0</file>
+                    <name>ICCSTM8</name>
+                    <file> 39 25 36 35 27 32 44 41 53 33 5 34 14 46 52 2 43 30 26 28 42 37 19 55 57 74 7</file>
                 </tool>
             </inputs>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\IRremote.c</name>
+            <outputs>
+                <tool>
+                    <name>BICOMP</name>
+                    <file> 18</file>
+                </tool>
+                <tool>
+                    <name>__cstat</name>
+                    <file> 76</file>
+                </tool>
+                <tool>
+                    <name>ICCSTM8</name>
+                    <file> 69 72 17</file>
+                </tool>
+            </outputs>
+            <inputs>
+                <tool>
+                    <name>BICOMP</name>
+                    <file> 41 28 25 34 36 39 14 43 26 30 44 55 46 40 12 52 35 33 37 19 2 27 32 53 42 57 74 29</file>
+                </tool>
+                <tool>
+                    <name>ICCSTM8</name>
+                    <file> 2 43 30 46 34 25 36 35 27 32 44 41 39 53 33 26 52 28 42 37 19 55 57 74 40 14 12 29</file>
+                </tool>
+            </inputs>
+        </file>
+        <file>
+            <name>[ROOT_NODE]</name>
+            <outputs>
+                <tool>
+                    <name>ILINK</name>
+                    <file> 85 75</file>
+                </tool>
+            </outputs>
         </file>
         <file>
             <name>$PROJ_DIR$\Debug\Exe\clock_ssd_stm8s105.out</name>
             <outputs>
                 <tool>
                     <name>ILINK</name>
-                    <file> 77</file>
+                    <file> 75</file>
                 </tool>
             </outputs>
             <inputs>
                 <tool>
                     <name>ILINK</name>
-                    <file> 26 52 78 76 71 63 67 68 75 79</file>
+                    <file> 51 16 63 59 70 68 23 79 81 31</file>
                 </tool>
             </inputs>
         </file>

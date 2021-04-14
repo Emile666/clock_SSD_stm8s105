@@ -69,6 +69,24 @@ uint16_t tmr2_val(void)
 } // tmr2_val()
 
 /*------------------------------------------------------------------
+  Purpose  : This function reads the value of TMR3 which runs at 1 MHz.
+  Variables: -
+  Returns  : the value from TMR3
+  ------------------------------------------------------------------*/
+uint16_t tmr3_val(void)
+{
+	uint8_t  h,l;
+	uint16_t tmr;
+	
+	h = TIM3_CNTRH;
+	l = TIM3_CNTRL;
+	tmr   = h;
+	tmr <<= 8;
+	tmr  |= l;	
+	return tmr;
+} // tmr3_val()
+
+/*------------------------------------------------------------------
   Purpose  : This function waits a number of microseconds.  
              Do NOT use this in an interrupt.
   Variables: 

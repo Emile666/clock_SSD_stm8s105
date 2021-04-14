@@ -23,6 +23,10 @@
 /*-----------------------------------------------------------------------------
   Purpose  : This function creates a 5 usec delay (approximately) without
              using a timer or an interrupt.
+  Measurement: at f = 16 MHz, 1 SCL clock consists of 2 calls to this function.
+               80 -> 34 usec (17 usec. delay), 40 -> 25 usec (12 usec. delay)
+               20 -> 14.7 usec (7 usec. delay). The net delay is a bit less,
+               since setting/resetting bits also takes time.
   Variables: --
   Returns  : -
   ---------------------------------------------------------------------------*/
@@ -32,8 +36,8 @@ void i2c_delay_5usec(uint16_t x)
     uint8_t  i;
       
     for (j = 0; j < x; j++)
-    {
-        for (i = 0; i < 80; i++) ; // 80 * 62.5 nsec (16 MHz) = 5 usec.
+    {   // Measured: approx. 7 usec. delay
+        for (i = 0; i < 20; i++) ; 
     } // for j
 } // i2c_delay_5usec()
     
