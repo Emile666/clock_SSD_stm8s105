@@ -7,7 +7,6 @@
 !*.c
 !*.h
 !*.ew?
-!*.dep
 !settings
 !Debug/Exe
 !Debug/List
