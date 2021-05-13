@@ -43,15 +43,16 @@
 #include <ctype.h>
 
 //-----------------------------------------------------------------------------------------------
-// LED 01 - LED 04 : segment e
-// LED 05 - LED 08 : segment d
-// LED 09 - LED 12 : segment c
-// LED 13 - LED 16 : segment g
-// LED 17 - LED 20 : segment b
-// LED 21 - LED 24 : segment a
-// LED 25 - LED 28 : segment f
-// LED 29          : decimal-point
+// LED 00 - LED 03 : segment e
+// LED 04 - LED 07 : segment d
+// LED 08 - LED 11 : segment c
+// LED 12 - LED 15 : segment g
+// LED 16 - LED 19 : segment b
+// LED 20 - LED 23 : segment a
+// LED 24 - LED 27 : segment f
+// LED 28          : decimal-point
 //-----------------------------------------------------------------------------------------------
+#define SEG_DP  (0x80)
 #define SEG_A   (0x40)
 #define SEG_B   (0x20)
 #define SEG_C   (0x10)
@@ -99,9 +100,10 @@
 // The Number of WS2812B devices present
 // For the binary clock, this is a total of 20
 //-------------------------------------------------
-#define NR_BOARDS     (6)
-#define NR_LEDS       (29 * NR_BOARDS)                    
-#define LED_INTENSITY (0x10) /* initial value for LED intensity */
+#define NR_BOARDS         (6)
+#define NR_LEDS_PER_BOARD (29)   /* 4 * 7-segments + 1 dp */
+#define NR_LEDS           (NR_LEDS_PER_BOARD * NR_BOARDS)                    
+#define LED_INTENSITY     (0x10) /* initial value for LED intensity */
 
 //-------------------------------------------------
 // Constants for the independent watchdog (IWDG)
@@ -114,11 +116,11 @@
 // Address values (16-bit) for EEPROM
 //-------------------------------------------------
 #define EEP_ADDR_INTENSITY  (0x10) /* LED intensity */
-#define EEP_ADDR_DST_ACTIVE (0x11) /* 1 = Day-light Savings Time active */
 #define EEP_ADDR_BBEGIN_H   (0x12) /* Blanking begin-time hours */
 #define EEP_ADDR_BBEGIN_M   (0x13) /* Blanking begin-time minutes */
 #define EEP_ADDR_BEND_H     (0x14) /* Blanking end-time hours */
 #define EEP_ADDR_BEND_M     (0x15) /* Blanking end-time minutes */
+#define EEP_ADDR_DST_ACTIVE (0x20) /* 1 = Day-light Savings Time active */
  
 //-------------------------------------------------
 // VS1838B IR infrared remote
@@ -202,11 +204,33 @@
 #define IR_CMD_IDLE      (0)
 #define IR_CMD_0         (1)
 #define IR_CMD_1         (2)
+#define IR_CMD_2         (3)
+#define IR_CMD_3         (4)
+#define IR_CMD_4         (5)
+#define IR_CMD_5         (6)
+#define IR_CMD_6         (7) /* Invert Blanking-Active signal */
+#define IR_CMD_7         (8) /* Enable Testpattern */
+#define IR_CMD_8         (9) /* Enable Testpattern */
+#define IR_CMD_9        (10) /*  */
+#define IR_CMD_HASH     (11) /* Show date & year for 10 seconds */
+
+#define IR_SHOW_TIME     (0)
+#define IR_SHOW_DATE     (1)
+#define IR_SHOW_YEAR     (2)
+
+#define COL_RED          (0)
+#define COL_GREEN        (1)
+#define COL_BLUE         (2)
+#define COL_YELLOW       (3) /* red + green  */
+#define COL_MAGENTA      (4) /* red + blue   */
+#define COL_CYAN         (5) /* green + blue */
+#define COL_WHITE        (6) /* red + green + blue */
                          
 void     print_date_and_time(void);
 void     print_dow(uint8_t dow);
 uint16_t cmin(uint8_t h, uint8_t m);
 bool     blanking_active(void);
+void     clear_all_leds(void);
 void     check_and_set_summertime(void);
 void     execute_single_command(char *s);
 void     rs232_command_handler(void);

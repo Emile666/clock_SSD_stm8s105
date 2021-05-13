@@ -10,19 +10,23 @@ extern uint32_t t2_millis;         // Updated in TMR2 interrupt
 
 char     rs232_inbuf[UART_BUFLEN]; // buffer for RS232 commands
 uint8_t  rs232_ptr     = 0;        // index in RS232 buffer
-char     ssd_clk_ver[] = "Clock SSD v0.41\n";
-uint8_t  ssd[10] = {0x7E,0x30,0x6D,0x79,0x33,0x5B,0x5F,0x70,0x7F,0x7B}; // 0abcdefg
+char     ssd_clk_ver[] = "Clock SSD v0.42\n";
+uint8_t  ssd[12] = {0x7E,0x30,0x6D,0x79,0x33,0x5B,0x5F,0x70,0x7F,0x7B,0x00,0x01}; // 0abcdefg
 
 uint8_t led_r[NR_LEDS];          // Array with 8-bit red colour for all WS2812
 uint8_t led_g[NR_LEDS];          // Array with 8-bit green colour for all WS2812
 uint8_t led_b[NR_LEDS];          // Array with 8-bit blue colour for all WS2812
-uint8_t enable_test_pattern = 1; // 1 = enable WS2812 test-pattern
+bool    enable_test_pattern = false; // true = enable WS2812 test-pattern
+uint8_t show_date_IR        = 0; // Show normal time or date and year
+uint8_t prev_show_date_IR   = 0; // Previous value of show_date_IR
 uint8_t watchdog_test       = 0; // 1 = watchdog test modus
 uint8_t led_intensity;           // Intensity of WS2812 LEDs
 bool    dst_active  = false;     // true = Daylight Saving Time active
 Time    dt;                      // Struct with time and date values, updated every sec.
 bool    real_binary = false;
 bool    powerup     = true;
+bool    blanking_invert = false; // Invert blanking-active IR-command
+bool    enable_test_IR  = false; // Enable Test-pattern IR-command
 
 uint8_t blank_begin_h  = 23;
 uint8_t blank_begin_m  = 30;
@@ -41,12 +45,14 @@ uint8_t  ir_cmd_tmr = 0;
 
 //----------------------------------------------------------------------------
 // These values are stored directly into EEPROM
+// Note: DST_ACTIVE is stored outside this array, so that it is not initialised
+//       every time new firmware is loaded
 //----------------------------------------------------------------------------
 __root __eeprom const int eedata[] = 
 {
        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // Not used
        LED_INTENSITY, /* Intensity of WS2812 leds */
-       0,             /* 1 = Daylight Saving Time active */
+       0,             /* not in use yet */
        23,            /* Blanking begin hours */
        30,            /* Blanking begin minutes */
        8,             /* Blanking end hours */
@@ -254,9 +260,12 @@ uint8_t ir_key(void)
   ---------------------------------------------------------------------------*/
 void handle_ir_command(uint8_t key)
 {
+    static uint16_t tmr_xsec; // seconds timer
+    static uint8_t prev_show_date_IR;
+    
     if (key == IR_NONE)
     {   // increment no-action timer
-        if (++ir_cmd_tmr > 100)
+        if (!blanking_invert && !enable_test_IR && (++ir_cmd_tmr > 100))
         {   // back to idle after 10 seconds
             ir_cmd_std = IR_CMD_IDLE; 
             return; // exit
@@ -269,10 +278,54 @@ void handle_ir_command(uint8_t key)
         case IR_CMD_IDLE:
             if (key == IR_0)      ir_cmd_std = IR_CMD_0;
             else if (key == IR_1) ir_cmd_std = IR_CMD_1;
+            else if (key == IR_6) 
+            {
+                ir_cmd_std = IR_CMD_6; // Blanking invert
+                tmr_xsec = 0;         // reset timer
+            } // else if
+            else if (key == IR_7) 
+            {
+                ir_cmd_std = IR_CMD_7; // Test mode
+                tmr_xsec = 0;         // reset timer
+            } // else if
+            else if (key == IR_HASH) 
+            {
+                ir_cmd_std = IR_CMD_HASH; // Show date & year
+                tmr_xsec = 0;             // reset timer
+            } // else if
             break;
         case IR_CMD_0:
             break;
         case IR_CMD_1:
+            break;
+        case IR_CMD_6: // Invert Blanking Active for 60 seconds
+            if (++tmr_xsec >= 600)
+            {
+                blanking_invert = false;
+                ir_cmd_std      = IR_CMD_IDLE;
+            } // if
+            else blanking_invert = true;
+            break;
+        case IR_CMD_7: // Set test mode for 60 seconds
+            if (++tmr_xsec >= 600)
+            {
+                enable_test_IR = false;
+                ir_cmd_std     = IR_CMD_IDLE;
+                clear_all_leds();
+            } // if
+            else enable_test_IR = true;
+            break;
+        case IR_CMD_HASH:
+            if (++tmr_xsec >= 80)
+            {
+                show_date_IR = IR_SHOW_TIME;
+                ir_cmd_std   = IR_CMD_IDLE;
+            } // if
+            else if ((tmr_xsec < 20) || ((tmr_xsec >= 40) && (tmr_xsec < 60))) 
+                 show_date_IR = IR_SHOW_DATE;
+            else show_date_IR = IR_SHOW_YEAR;
+            if (show_date_IR != prev_show_date_IR) clear_all_leds();
+            prev_show_date_IR = show_date_IR;
             break;
         default:
             ir_cmd_std = IR_CMD_IDLE;
@@ -291,25 +344,25 @@ void handle_ir_command(uint8_t key)
   ---------------------------------------------------------------------------*/
 void ir_task(void)
 {
-    char s[25];
+//    char s[25];
     uint8_t i, key = IR_NONE;
     
     if (ir_rdy)
     {
-       sprintf(s,"[%d]",rawlen);
-       uart_printf(s);
-       for (i = 0; i < rawlen; i++)
-       {
-           sprintf(s,"%u,",rawbuf[i]);
-           uart_printf(s);
-       } // for i
-       uart_putc('\n');
+//       sprintf(s,"[%d]",rawlen);
+//       uart_printf(s);
+//       for (i = 0; i < rawlen; i++)
+//       {
+//           sprintf(s,"%u,",rawbuf[i]);
+//           uart_printf(s);
+//       } // for i
+//       uart_putc('\n');
        if (ir_decode_nec()) 
        {
-           sprintf(s,"result=0x%lx\n",ir_result);
-           uart_printf(s);
+//           sprintf(s,"result=0x%lx\n",ir_result);
+//           uart_printf(s);
            key = ir_key(); // find the key pressed
-           handle_ir_command(key);
+//           handle_ir_command(key);
        } // if
        for (i = 0; i < 99; i++) rawbuf[i] = 0; // clear buffer
        tmr3_std = STATE_IDLE; // reset state for next IR code
@@ -427,10 +480,6 @@ void setup_timer3(void)
   ---------------------------------------------------------------------------*/
 void setup_output_ports(void)
 {
-  PB_ODR     |=  (I2C_SCL | I2C_SDA);   // Must be set here, or I2C will not work
-  PB_DDR     |=  (I2C_SCL | I2C_SDA);   // Set as outputs
-  PB_CR2     &= ~(I2C_SCL | I2C_SDA);   // O: Set speed to 2 MHz, I: disable IRQ
-  
   PC_DDR     |= DI_3V3;     // Set as output
   PC_CR1     |= DI_3V3;     // Set to Push-Pull
   PC_ODR     &= ~(DI_3V3);  // Turn off outputs
@@ -449,7 +498,9 @@ void setup_output_ports(void)
   
   PE_DDR     &= ~SQW;       // Set as input
   PE_CR1     |=  SQW;       // Enable pull-up
-  
+  PE_ODR     |=  (I2C_SCL | I2C_SDA);   // Must be set here, or I2C will not work
+  PE_DDR     |=  (I2C_SCL | I2C_SDA);   // Set as outputs
+  PE_CR2     &= ~(I2C_SCL | I2C_SDA);   // O: Set speed to 2 MHz, I: disable IRQ
   //PE_CR2     |=  SQW;       // Enable external interrupt
   //EXTI_CR2_PEIS = 0x01;     // PORTE external interrupt to rising edge only
   PE_DDR     |=  IRQ_LED;
@@ -555,6 +606,99 @@ uint8_t encode_to_bcd(uint8_t x)
     return retv;
 } // encode_to_bcd()
 
+/*------------------------------------------------------------------------
+  Purpose  : Encode a byte into 2 BCD numbers.
+  Variables: x: the byte to encode
+  Returns  : the two encoded BCD numbers
+  ------------------------------------------------------------------------*/
+uint16_t encode_to_bcd4(uint16_t x)
+{
+    uint16_t temp, rest = x;
+    uint16_t retv = 0;
+    
+    temp   = rest / 1000;
+    retv  |= (temp & 0x0F);
+    retv <<= 4; // SHL 4
+    rest  -= temp * 1000;
+
+    temp   = rest / 100;
+    retv  |= (temp & 0x0F);
+    retv <<= 4; // SHL 4
+    rest  -= temp * 100;
+    
+    temp   = rest / 10;
+    retv  |= (temp & 0x0F);
+    retv <<= 4; // SHL 4
+    rest  -= temp * 10;
+    retv  |= (rest & 0x0F);
+    return retv;
+} // encode_to_bcd4()
+
+/*-----------------------------------------------------------------------------
+  Purpose  : This routine 
+  Variables: 
+             board_nr: [0,NR_BOARDS-1]
+             *p      : pointer to led_r[], led_g[] or led_b[] array
+             digit   : digit to write into array 
+  Returns  : -
+  ---------------------------------------------------------------------------*/
+void fill_led_color(uint8_t *p, uint8_t board_nr, uint8_t digit)
+{
+    uint8_t lednr = board_nr * NR_LEDS_PER_BOARD;
+    
+    if ((board_nr >= NR_BOARDS) || (digit >= 12)) return; // error
+    
+    // LED chain-order is segment E, D, C, G, B, A, F, dp
+    p[lednr   ] = p[lednr+ 1] = p[lednr+ 2] = p[lednr+ 3] = (ssd[digit] & SEG_E) ? led_intensity : 0x00;
+    p[lednr+ 4] = p[lednr+ 5] = p[lednr+ 6] = p[lednr+ 7] = (ssd[digit] & SEG_D) ? led_intensity : 0x00;
+    p[lednr+ 8] = p[lednr+ 9] = p[lednr+10] = p[lednr+11] = (ssd[digit] & SEG_C) ? led_intensity : 0x00;
+    p[lednr+12] = p[lednr+13] = p[lednr+14] = p[lednr+15] = (ssd[digit] & SEG_G) ? led_intensity : 0x00;
+    p[lednr+16] = p[lednr+17] = p[lednr+18] = p[lednr+19] = (ssd[digit] & SEG_B) ? led_intensity : 0x00;
+    p[lednr+20] = p[lednr+21] = p[lednr+22] = p[lednr+23] = (ssd[digit] & SEG_A) ? led_intensity : 0x00;
+    p[lednr+24] = p[lednr+25] = p[lednr+26] = p[lednr+27] = (ssd[digit] & SEG_F) ? led_intensity : 0x00;
+    p[lednr+28] = 0x00; // no decimal-point
+} // fill_led_color()
+
+/*-----------------------------------------------------------------------------
+  Purpose  : This routine 
+  Variables: board_nr: [0,NR_BOARDS-1]
+             color   : set of defined colors
+             digit   : digit to write into array 
+  Returns  : -
+  ---------------------------------------------------------------------------*/
+void fill_led_array(uint8_t board_nr, uint8_t color, uint8_t digit)
+{
+    switch (color)
+    {
+    case COL_RED:
+        fill_led_color(led_r, board_nr, digit);
+        break;
+    case COL_GREEN:
+        fill_led_color(led_g, board_nr, digit);
+        break;
+    case COL_BLUE:
+        fill_led_color(led_b, board_nr, digit);
+        break;
+    case COL_YELLOW:
+        fill_led_color(led_r, board_nr, digit);
+        fill_led_color(led_g, board_nr, digit);
+        break;
+    case COL_MAGENTA:
+        fill_led_color(led_r, board_nr, digit);
+        fill_led_color(led_b, board_nr, digit);
+        break;
+    case COL_CYAN:
+        fill_led_color(led_g, board_nr, digit);
+        fill_led_color(led_b, board_nr, digit);
+        break;
+    default: // COL_WHITE:
+        fill_led_color(led_r, board_nr, digit);
+        fill_led_color(led_g, board_nr, digit);
+        fill_led_color(led_b, board_nr, digit);
+        break;
+    } // switch
+} // fill_led_array()
+
 /*-----------------------------------------------------------------------------
   Purpose  : This routine creates a pattern for the LEDs and stores it in
              the arrays led_r, led_g and led_b
@@ -565,13 +709,14 @@ uint8_t encode_to_bcd(uint8_t x)
   ---------------------------------------------------------------------------*/
 void pattern_task(void)
 {
-    uint8_t x,xl,xm;
+    uint8_t  x,xl,xm,cl,cm;
+    uint16_t y;
     
     if (!watchdog_test)   
     {   // only refresh when watchdog_test == 0 (X0 command)
         IWDG_KR = IWDG_KR_KEY_REFRESH; // Refresh watchdog (reset after 500 msec.)
     } // if
-    if (enable_test_pattern)
+    if (enable_test_pattern || enable_test_IR)
     {   // WS2812 test-pattern
 	test_pattern(); 
     } // if
@@ -584,116 +729,74 @@ void pattern_task(void)
         } // if
         // check summertime change every minute
         if (dt.sec == 0) check_and_set_summertime(); 
-    	x  = encode_to_bcd(dt.sec);
-        xm = (x >> 4) & 0x0F; // msb seconds
-        xl = x & 0x0F;        // lsb seconds
-        // There's at least 1 board, send seconds
-        led_r[NR_LEDS- 1] = 0x00; // no decimal-point
-        led_r[NR_LEDS- 2] = led_r[NR_LEDS- 3] = 
-        led_r[NR_LEDS- 4] = led_r[NR_LEDS- 5] = (ssd[xl] & SEG_F) ? led_intensity : 0x00;
-        led_r[NR_LEDS- 6] = led_r[NR_LEDS- 7] = 
-        led_r[NR_LEDS- 8] = led_r[NR_LEDS- 9] = (ssd[xl] & SEG_A) ? led_intensity : 0x00;
-        led_r[NR_LEDS-10] = led_r[NR_LEDS-11] = 
-        led_r[NR_LEDS-12] = led_r[NR_LEDS-13] = (ssd[xl] & SEG_B) ? led_intensity : 0x00;
-        led_r[NR_LEDS-14] = led_r[NR_LEDS-15] = 
-        led_r[NR_LEDS-16] = led_r[NR_LEDS-17] = (ssd[xl] & SEG_G) ? led_intensity : 0x00;
-        led_r[NR_LEDS-18] = led_r[NR_LEDS-19] = 
-        led_r[NR_LEDS-20] = led_r[NR_LEDS-21] = (ssd[xl] & SEG_C) ? led_intensity : 0x00;
-        led_r[NR_LEDS-22] = led_r[NR_LEDS-23] = 
-        led_r[NR_LEDS-24] = led_r[NR_LEDS-25] = (ssd[xl] & SEG_D) ? led_intensity : 0x00;
-        led_r[NR_LEDS-26] = led_r[NR_LEDS-27] = 
-        led_r[NR_LEDS-28] = led_r[NR_LEDS-29] = (ssd[xl] & SEG_E) ? led_intensity : 0x00;
-#if NR_BOARDS > 1
-        led_r[NR_LEDS-30] = 0x00; // no decimal-point
-        led_r[NR_LEDS-31] = led_r[NR_LEDS-32] = 
-        led_r[NR_LEDS-33] = led_r[NR_LEDS-34] = (ssd[xm] & SEG_F) ? led_intensity : 0x00;
-        led_r[NR_LEDS-35] = led_r[NR_LEDS-36] = 
-        led_r[NR_LEDS-37] = led_r[NR_LEDS-38] = (ssd[xm] & SEG_A) ? led_intensity : 0x00;
-        led_r[NR_LEDS-39] = led_r[NR_LEDS-40] = 
-        led_r[NR_LEDS-41] = led_r[NR_LEDS-42] = (ssd[xm] & SEG_B) ? led_intensity : 0x00;
-        led_r[NR_LEDS-43] = led_r[NR_LEDS-44] = 
-        led_r[NR_LEDS-45] = led_r[NR_LEDS-46] = (ssd[xm] & SEG_G) ? led_intensity : 0x00;
-        led_r[NR_LEDS-47] = led_r[NR_LEDS-48] = 
-        led_r[NR_LEDS-49] = led_r[NR_LEDS-50] = (ssd[xm] & SEG_C) ? led_intensity : 0x00;
-        led_r[NR_LEDS-51] = led_r[NR_LEDS-52] = 
-        led_r[NR_LEDS-53] = led_r[NR_LEDS-54] = (ssd[xm] & SEG_D) ? led_intensity : 0x00;
-        led_r[NR_LEDS-55] = led_r[NR_LEDS-56] = 
-        led_r[NR_LEDS-57] = led_r[NR_LEDS-58] = (ssd[xm] & SEG_E) ? led_intensity : 0x00;
-#endif        
-#if NR_BOARDS > 2
-    	x  = encode_to_bcd(dt.min);
-        xm = (x >> 4) & 0x0F; // msb minutes
-        xl = x & 0x0F;        // lsb minutes
-        led_g[NR_LEDS-59] = 0x00; // no decimal-point
-        led_g[NR_LEDS-60] = led_g[NR_LEDS-61] = 
-        led_g[NR_LEDS-62] = led_g[NR_LEDS-63] = (ssd[xl] & SEG_F) ? led_intensity : 0x00;
-        led_g[NR_LEDS-64] = led_g[NR_LEDS-65] = 
-        led_g[NR_LEDS-66] = led_g[NR_LEDS-67] = (ssd[xl] & SEG_A) ? led_intensity : 0x00;
-        led_g[NR_LEDS-68] = led_g[NR_LEDS-69] = 
-        led_g[NR_LEDS-70] = led_g[NR_LEDS-71] = (ssd[xl] & SEG_B) ? led_intensity : 0x00;
-        led_g[NR_LEDS-72] = led_g[NR_LEDS-73] = 
-        led_g[NR_LEDS-74] = led_g[NR_LEDS-75] = (ssd[xl] & SEG_G) ? led_intensity : 0x00;
-        led_g[NR_LEDS-76] = led_g[NR_LEDS-77] = 
-        led_g[NR_LEDS-78] = led_g[NR_LEDS-79] = (ssd[xl] & SEG_C) ? led_intensity : 0x00;
-        led_g[NR_LEDS-80] = led_g[NR_LEDS-81] = 
-        led_g[NR_LEDS-82] = led_g[NR_LEDS-83] = (ssd[xl] & SEG_D) ? led_intensity : 0x00;
-        led_g[NR_LEDS-84] = led_g[NR_LEDS-85] = 
-        led_g[NR_LEDS-86] = led_g[NR_LEDS-87] = (ssd[xl] & SEG_E) ? led_intensity : 0x00;
-#endif        
-#if NR_BOARDS > 3
-        led_g[NR_LEDS- 88] = 0x00; // no decimal-point
-        led_g[NR_LEDS- 89] = led_g[NR_LEDS- 90] = 
-        led_g[NR_LEDS- 91] = led_g[NR_LEDS- 92] = (ssd[xm] & SEG_F) ? led_intensity : 0x00;
-        led_g[NR_LEDS- 93] = led_g[NR_LEDS- 94] = 
-        led_g[NR_LEDS- 95] = led_g[NR_LEDS- 96] = (ssd[xm] & SEG_A) ? led_intensity : 0x00;
-        led_g[NR_LEDS- 97] = led_g[NR_LEDS- 98] = 
-        led_g[NR_LEDS- 99] = led_g[NR_LEDS-100] = (ssd[xm] & SEG_B) ? led_intensity : 0x00;
-        led_g[NR_LEDS-101] = led_g[NR_LEDS-102] = 
-        led_g[NR_LEDS-103] = led_g[NR_LEDS-104] = (ssd[xm] & SEG_G) ? led_intensity : 0x00;
-        led_g[NR_LEDS-105] = led_g[NR_LEDS-106] = 
-        led_g[NR_LEDS-107] = led_g[NR_LEDS-108] = (ssd[xm] & SEG_C) ? led_intensity : 0x00;
-        led_g[NR_LEDS-109] = led_g[NR_LEDS-110] = 
-        led_g[NR_LEDS-111] = led_g[NR_LEDS-112] = (ssd[xm] & SEG_D) ? led_intensity : 0x00;
-        led_g[NR_LEDS-113] = led_g[NR_LEDS-114] = 
-        led_g[NR_LEDS-115] = led_g[NR_LEDS-116] = (ssd[xm] & SEG_E) ? led_intensity : 0x00;
-#endif        
-#if NR_BOARDS > 4
-    	x  = encode_to_bcd(dt.hour);
-        xm = (x >> 4) & 0x0F; // msb hours
-        xl = x & 0x0F;        // lsb hours
-        led_b[NR_LEDS-117] = 0x00; // no decimal-point
-        led_b[NR_LEDS-118] = led_b[NR_LEDS-119] = 
-        led_b[NR_LEDS-120] = led_b[NR_LEDS-121] = (ssd[xl] & SEG_F) ? led_intensity : 0x00;
-        led_b[NR_LEDS-122] = led_b[NR_LEDS-123] = 
-        led_b[NR_LEDS-124] = led_b[NR_LEDS-125] = (ssd[xl] & SEG_A) ? led_intensity : 0x00;
-        led_b[NR_LEDS-126] = led_b[NR_LEDS-127] = 
-        led_b[NR_LEDS-128] = led_b[NR_LEDS-129] = (ssd[xl] & SEG_B) ? led_intensity : 0x00;
-        led_b[NR_LEDS-130] = led_b[NR_LEDS-131] = 
-        led_b[NR_LEDS-132] = led_b[NR_LEDS-133] = (ssd[xl] & SEG_G) ? led_intensity : 0x00;
-        led_b[NR_LEDS-134] = led_b[NR_LEDS-135] = 
-        led_b[NR_LEDS-136] = led_b[NR_LEDS-137] = (ssd[xl] & SEG_C) ? led_intensity : 0x00;
-        led_b[NR_LEDS-138] = led_b[NR_LEDS-139] = 
-        led_b[NR_LEDS-140] = led_b[NR_LEDS-141] = (ssd[xl] & SEG_D) ? led_intensity : 0x00;
-        led_b[NR_LEDS-142] = led_b[NR_LEDS-143] = 
-        led_b[NR_LEDS-144] = led_b[NR_LEDS-145] = (ssd[xl] & SEG_E) ? led_intensity : 0x00;
-#endif        
-#if NR_BOARDS > 5
-        led_b[NR_LEDS-146] = 0x00; // no decimal-point
-        led_b[NR_LEDS-147] = led_b[NR_LEDS-148] = 
-        led_b[NR_LEDS-149] = led_b[NR_LEDS-150] = (ssd[xm] & SEG_F) ? led_intensity : 0x00;
-        led_b[NR_LEDS-151] = led_b[NR_LEDS-152] = 
-        led_b[NR_LEDS-153] = led_b[NR_LEDS-154] = (ssd[xm] & SEG_A) ? led_intensity : 0x00;
-        led_b[NR_LEDS-155] = led_b[NR_LEDS-156] = 
-        led_b[NR_LEDS-157] = led_b[NR_LEDS-158] = (ssd[xm] & SEG_B) ? led_intensity : 0x00;
-        led_b[NR_LEDS-159] = led_b[NR_LEDS-160] = 
-        led_b[NR_LEDS-161] = led_b[NR_LEDS-162] = (ssd[xm] & SEG_G) ? led_intensity : 0x00;
-        led_b[NR_LEDS-163] = led_b[NR_LEDS-164] = 
-        led_b[NR_LEDS-165] = led_b[NR_LEDS-166] = (ssd[xm] & SEG_C) ? led_intensity : 0x00;
-        led_b[NR_LEDS-167] = led_b[NR_LEDS-168] = 
-        led_b[NR_LEDS-169] = led_b[NR_LEDS-170] = (ssd[xm] & SEG_D) ? led_intensity : 0x00;
-        led_b[NR_LEDS-171] = led_b[NR_LEDS-172] = 
-        led_b[NR_LEDS-173] = led_b[NR_LEDS-174] = (ssd[xm] & SEG_E) ? led_intensity : 0x00;
-#endif     
+        if (show_date_IR == IR_SHOW_TIME)
+        {   // normal time mode
+            x  = encode_to_bcd(dt.sec);
+            xm = (x >> 4) & 0x0F; // msb seconds
+            xl = x & 0x0F;        // lsb seconds
+            cl = cm = COL_RED;
+        } // if
+        else if (show_date_IR == IR_SHOW_DATE)
+        {   // show day and month
+            xl = 10; // SSD off
+            xm = encode_to_bcd(dt.mon) & 0x0F; // lsb month
+            cl = cm = COL_YELLOW;
+        } // else if
+        else
+        {   // show year
+            y  = encode_to_bcd4(dt.year);
+            xl = 10; // SSD off
+            xm = (uint8_t)(y & 0x000F); // lsb year
+            cl = cm = COL_YELLOW;
+        } // else
+        fill_led_array(5, cl, xl); // LSB
+        fill_led_array(4, cm, xm); // MSB
+
+        if (show_date_IR == IR_SHOW_TIME)
+        {   // normal time mode
+            x  = encode_to_bcd(dt.min);
+            xm = (x >> 4) & 0x0F; // msb minutes
+            xl = x & 0x0F;        // lsb minutes
+            cl = cm = COL_GREEN;
+        } // if
+        else if (show_date_IR == IR_SHOW_DATE)
+        {   // show day and month
+            x  = encode_to_bcd(dt.mon);
+            xl = (x >> 4) & 0x0F; // msb month
+            xm = 11; // - (seg G)
+            cl = cm = COL_YELLOW;
+        } // else if
+        else
+        {   // show year
+            xl = (uint8_t)((y >> 4) & 0x0F); // year, 2nd digit from right
+            xm = (uint8_t)((y >> 8) & 0x0F); // year, 3rd digit from right
+            cl = cm = COL_YELLOW;
+        } // else
+        fill_led_array(3, cl, xl); // LSB
+        fill_led_array(2, cm, xm); // MSB
+
+        if (show_date_IR == IR_SHOW_TIME)
+        {   // normal time mode
+            x  = encode_to_bcd(dt.hour);
+            xm = (x >> 4) & 0x0F; // msb hours
+            xl = x & 0x0F;        // lsb hours
+            cl = cm = COL_BLUE;
+        } // if
+        else if (show_date_IR == IR_SHOW_DATE)
+        {   // show day and month
+            x  = encode_to_bcd(dt.day);
+            xm = (x >> 4) & 0x0F; // msb month
+            xl = x & 0x0F;        // lsb month
+            cl = cm = COL_YELLOW;
+        } // else if
+        else
+        {   // show year
+            xl = (uint8_t)((y >> 12) & 0x0F); // msb year
+            xm = 10;  // SSD off
+            cl = cm = COL_YELLOW;
+        } // else
+        fill_led_array(1, cl, xl); // LSB
+        fill_led_array(0, cm, xm); // MSB
     } // else
 } // pattern_task()    
         
@@ -886,7 +989,9 @@ bool blanking_active(void)
 	
 	// (b>=e): Example: 23:30 and 05:30, active if x>=b OR  x<=e
 	// (b< e): Example: 02:30 and 05:30, active if x>=b AND x<=e
-	return (b >= e) && ((x >= b) || (x <= e)) || ((x >= b) && (x < e)); 
+	bool blanking = (b >= e) && ((x >= b) || (x <= e)) || ((x >= b) && (x < e)); 
+        if (blanking_invert) blanking = !blanking;
+        return blanking;
 } // blanking_active()
 
 /*-----------------------------------------------------------------------------
@@ -1018,7 +1123,7 @@ void execute_single_command(char *s)
 		 break;
                                         
 	case 'w': // WS2812 test-pattern command
-		 enable_test_pattern = num; // 1 = enable test-pattern
+		 enable_test_pattern = (num > 0); // 1 = enable test-pattern
                  if (!num)
                  {  // clear all leds when finished with test-pattern
                     clear_all_leds();
