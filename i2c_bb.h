@@ -43,7 +43,9 @@
 #define SDA_read  (PE_IDR &   I2C_SDA) 			    /* Read from SDA */
 #define SDA_1     (PE_ODR |=  I2C_SDA) 			    /* Set SDA to 1 */
 #define SDA_0     (PE_ODR &= ~I2C_SDA) 			    /* Set SDA to 0 */
+#define SCL_in    (PE_DDR &= ~I2C_SCL) 			    /* Set SCL to input */
 #define SCL_out   {PE_DDR |=  I2C_SCL; PE_CR1 |=  I2C_SCL;} /* Set SCL to push-pull output */
+#define SCL_read  (PE_IDR &   I2C_SCL) 			    /* Read from SCL */
 #define SCL_1     {PE_ODR |=  I2C_SCL; i2c_delay_5usec(1);} /* Set SCL to 1 */
 #define SCL_0     {PE_ODR &= ~I2C_SCL; i2c_delay_5usec(1);} /* Set SCL to 0 */
 

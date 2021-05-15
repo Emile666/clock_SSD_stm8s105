@@ -52,54 +52,55 @@ void i2c_delay_5usec(uint16_t x)
   ---------------------------------------------------------------------------*/
 uint8_t i2c_reset_bus(void)
 {
-	int8_t   scl_cnt,sda_cnt; // must be a signed int!
-	uint8_t  scl_low,sda_low;
-        
-	PB_DDR &= ~(I2C_SDA | I2C_SCL); // SDA and SCL both input with external pull-ups
-	i2c_delay_5usec(400);           // delay 2 msec.
-	
-	if (!(PB_IDR & I2C_SCL)) // check if SCL is low
-	{	// if it is held low, the uC cannot become the I2C master
-		return 1; // I2C bus-error. Could not clear SCL clock line held low
-	} // if
-	sda_low = !SDA_read;
-	sda_cnt = 20; // > 2x9 clock
-	while (sda_low && (sda_cnt-- > 0))
-	{	// Note: I2C bus is open collector so do NOT drive SCL or SDA high.
-		SCL_out; // SCL is Push-Pull output
-		SCL_0;   // Set SCL low
-                i2c_delay_5usec(1); // extra delay, so that even the slowest I2C devices are handled
-		PB_DDR &= ~I2C_SCL; // SCL is input
-		i2c_delay_5usec(2); // for > 5 us, so that even the slowest I2C devices are handled
-		scl_low = !(PB_IDR & I2C_SCL); // check if SCL is low
-		scl_cnt = 20;
-		while (scl_low && (scl_cnt-- > 0))
-		{
-			i2c_delay_5usec(20000);        // delay 100 msec.
-			scl_low = !(PB_IDR & I2C_SCL); // check if SCL is low
-		} // while
-		if (scl_low)
-		{	// still low after 2 sec error
-			return 2; // I2C error, could not clear, SCL held low by slave clock stretch for > 2 sec.
-		} // if
-		sda_low = !SDA_read;
-	} // while
-	if (sda_low)
-	{	// still low
-		return 3; // I2C bus error, could not clear, SDA held low
-	} // if
-	// else pull SDA line low for Start or Repeated Start
-	SDA_1;   // Set SDA to 1
-	SDA_out; // Set SDA to output
-	SDA_0;   // Then make it low i.e. send an I2C Start or Repeated Start
-	// When there's only one I2C master a Start or Repeat Start has the same function as a Stop
-	// and clears the bus. A repeat Start is a Start occurring after a Start with no intervening Stop.
-	i2c_delay_5usec(2); // delay 10 usec.
-	SDA_1;              // Make SDA line high i.e. send I2C STOP control
-	i2c_delay_5usec(2); // delay 10 usec.
-	SCL_1;              // Set SCL to 1
-	SCL_out;            // SCL is Push-Pull output
-	return 0;           // all is good
+    int8_t   scl_cnt,sda_cnt; // must be a signed int!
+    uint8_t  scl_low,sda_low;
+    
+    SDA_in; // SDA and SCL both input with external pull-ups
+    SCL_in;
+    i2c_delay_5usec(400); // delay 2 msec.
+    
+    if (!SCL_read) // check if SCL is low
+    {	// if it is held low, the uC cannot become the I2C master
+        return 1; // I2C bus-error. Could not clear SCL clock line held low
+    } // if
+    sda_low = !SDA_read;
+    sda_cnt = 20; // > 2x9 clock
+    while (sda_low && (sda_cnt-- > 0))
+    {	// Note: I2C bus is open collector so do NOT drive SCL or SDA high.
+        SCL_out; // SCL is Push-Pull output
+        SCL_0;   // Set SCL low
+        i2c_delay_5usec(1); // extra delay, so that even the slowest I2C devices are handled
+        SCL_in;  // SCL is input
+        i2c_delay_5usec(2);  // for > 5 us, so that even the slowest I2C devices are handled
+        scl_low = !SCL_read; // check if SCL is low
+        scl_cnt = 20;
+        while (scl_low && (scl_cnt-- > 0))
+        {
+            i2c_delay_5usec(20000); // delay 100 msec.
+            scl_low = !SCL_read;    // check if SCL is low
+        } // while
+        if (scl_low)
+        {	// still low after 2 sec error
+            return 2; // I2C error, could not clear, SCL held low by slave clock stretch for > 2 sec.
+        } // if
+        sda_low = !SDA_read;
+    } // while
+    if (sda_low)
+    {	// still low
+        return 3; // I2C bus error, could not clear, SDA held low
+    } // if
+    // else pull SDA line low for Start or Repeated Start
+    SDA_1;   // Set SDA to 1
+    SDA_out; // Set SDA to output
+    SDA_0;   // Then make it low i.e. send an I2C Start or Repeated Start
+    // When there's only one I2C master a Start or Repeat Start has the same function as a Stop
+    // and clears the bus. A repeat Start is a Start occurring after a Start with no intervening Stop.
+    i2c_delay_5usec(2); // delay 10 usec.
+    SDA_1;              // Make SDA line high i.e. send I2C STOP control
+    i2c_delay_5usec(2); // delay 10 usec.
+    SCL_1;              // Set SCL to 1
+    SCL_out;            // SCL is Push-Pull output
+    return 0;           // all is good
 } // i2c_reset_bus()
 
 /*-----------------------------------------------------------------------------

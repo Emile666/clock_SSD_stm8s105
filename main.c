@@ -10,19 +10,20 @@ extern uint32_t t2_millis;         // Updated in TMR2 interrupt
 
 char     rs232_inbuf[UART_BUFLEN]; // buffer for RS232 commands
 uint8_t  rs232_ptr     = 0;        // index in RS232 buffer
-char     ssd_clk_ver[] = "Clock SSD v0.42\n";
-uint8_t  ssd[12] = {0x7E,0x30,0x6D,0x79,0x33,0x5B,0x5F,0x70,0x7F,0x7B,0x00,0x01}; // 0abcdefg
+char     ssd_clk_ver[] = "Clock SSD S105 v0.43\n";
+// Bit-order: 0abcdefg. Digits: 0123456789 -bE
+uint8_t  ssd[14] = {0x7E,0x30,0x6D,0x79,0x33,0x5B,0x5F,0x70,0x7F,0x7B,0x00,0x01,0x1F,0x4F};
 
-uint8_t led_r[NR_LEDS];          // Array with 8-bit red colour for all WS2812
-uint8_t led_g[NR_LEDS];          // Array with 8-bit green colour for all WS2812
-uint8_t led_b[NR_LEDS];          // Array with 8-bit blue colour for all WS2812
+uint8_t led_r[NR_LEDS];           // Array with 8-bit red colour for all WS2812
+uint8_t led_g[NR_LEDS];           // Array with 8-bit green colour for all WS2812
+uint8_t led_b[NR_LEDS];           // Array with 8-bit blue colour for all WS2812
 bool    enable_test_pattern = false; // true = enable WS2812 test-pattern
-uint8_t show_date_IR        = 0; // Show normal time or date and year
-uint8_t prev_show_date_IR   = 0; // Previous value of show_date_IR
-uint8_t watchdog_test       = 0; // 1 = watchdog test modus
-uint8_t led_intensity;           // Intensity of WS2812 LEDs
-bool    dst_active  = false;     // true = Daylight Saving Time active
-Time    dt;                      // Struct with time and date values, updated every sec.
+uint8_t show_date_IR        = 0;  // Show normal time or date and year
+uint8_t set_time_IR = IR_NO_TIME; // Show normal time or date and year
+uint8_t watchdog_test       = 0;  // 1 = watchdog test modus
+uint8_t led_intensity;            // Intensity of WS2812 LEDs
+bool    dst_active  = false;      // true = Daylight Saving Time active
+Time    dt;                       // Struct with time and date values, updated every sec.
 bool    real_binary = false;
 bool    powerup     = true;
 bool    blanking_invert = false; // Invert blanking-active IR-command
@@ -32,6 +33,8 @@ uint8_t blank_begin_h  = 23;
 uint8_t blank_begin_m  = 30;
 uint8_t blank_end_h    =  8;
 uint8_t blank_end_m    = 30;
+uint8_t time_arr[4];          // Array for changing time with IR
+uint8_t time_arr_idx;         // Index into time_arr[]
 
 uint8_t  tmr3_std = STATE_IDLE;
 uint16_t rawbuf[100]; // buffer with clock-ticks
@@ -253,6 +256,43 @@ uint8_t ir_key(void)
 } // ir_key()
 
 /*-----------------------------------------------------------------------------
+  Purpose  : This function checks if a BCD number is allowed for a time
+  Variables: -
+  Returns  : -
+  ---------------------------------------------------------------------------*/
+void check_possible_digit(uint8_t digit)
+{
+    switch (time_arr_idx)
+    {
+        case 0: // MSB of hours
+            if (digit < 3) 
+            {   // only 0, 1 or 2 allowed
+                time_arr[0]  = digit;
+            } // else
+            break;
+        case 1: // LSB of hours
+            if ((time_arr[0] == 2) && (digit < 4))
+            {   // only 20, 21, 22 and 23 allowed
+                time_arr[1]  = digit;
+            } // if
+            else if (time_arr[0] < 2)
+            {   // time_arr[0] == 0 || time_arr[0] == 1
+                time_arr[1]  = digit;
+            } // else    
+            break;
+        case 2: // MSB of minutes
+            if (digit < 6) 
+            {   // only 0..5 allowed
+                time_arr[2]  = digit;
+            } // else
+            break;
+        default: // time_arr_idx == 3
+            time_arr[3]  = digit;
+            break;
+    } // switch
+} // check_possible_digit()
+
+/*-----------------------------------------------------------------------------
   Purpose  : This function is called every 100 msec. and initiates all actions
              derived from IR remote keys
   Variables: -
@@ -261,13 +301,14 @@ uint8_t ir_key(void)
 void handle_ir_command(uint8_t key)
 {
     static uint16_t tmr_xsec; // seconds timer
-    static uint8_t prev_show_date_IR;
+    uint8_t x;
     
     if (key == IR_NONE)
     {   // increment no-action timer
-        if (!blanking_invert && !enable_test_IR && (++ir_cmd_tmr > 100))
+        if (!blanking_invert && !enable_test_IR && (++ir_cmd_tmr > 200))
         {   // back to idle after 10 seconds
-            ir_cmd_std = IR_CMD_IDLE; 
+            set_time_IR = IR_NO_TIME;
+            ir_cmd_std  = IR_CMD_IDLE; 
             return; // exit
         } // if
     } // if
@@ -278,15 +319,29 @@ void handle_ir_command(uint8_t key)
         case IR_CMD_IDLE:
             if (key == IR_0)      ir_cmd_std = IR_CMD_0;
             else if (key == IR_1) ir_cmd_std = IR_CMD_1;
+            else if (key == IR_2) ir_cmd_std = IR_CMD_2;
+            else if (key == IR_3) ir_cmd_std = IR_CMD_3;
+            else if (key == IR_4) ir_cmd_std = IR_CMD_4;
+            else if (key == IR_5) ir_cmd_std = IR_CMD_5;
             else if (key == IR_6) 
             {
                 ir_cmd_std = IR_CMD_6; // Blanking invert
-                tmr_xsec = 0;         // reset timer
+                tmr_xsec = 0;          // reset timer
             } // else if
             else if (key == IR_7) 
             {
                 ir_cmd_std = IR_CMD_7; // Test mode
-                tmr_xsec = 0;         // reset timer
+                tmr_xsec = 0;          // reset timer
+            } // else if
+            else if (key == IR_8) 
+            {
+                ir_cmd_std = IR_CMD_8; // Set Blanking-Begin time
+                tmr_xsec = 0;          // reset timer
+            } // else if
+            else if (key == IR_9) 
+            {
+                ir_cmd_std = IR_CMD_9; // Set Blanking-End time
+                tmr_xsec = 0;          // reset timer
             } // else if
             else if (key == IR_HASH) 
             {
@@ -294,10 +349,25 @@ void handle_ir_command(uint8_t key)
                 tmr_xsec = 0;             // reset timer
             } // else if
             break;
+            
         case IR_CMD_0:
             break;
+            
         case IR_CMD_1:
             break;
+            
+        case IR_CMD_2:
+             break;
+            
+        case IR_CMD_3:
+            break;
+            
+        case IR_CMD_4:
+            break;
+            
+        case IR_CMD_5:
+            break;
+            
         case IR_CMD_6: // Invert Blanking Active for 60 seconds
             if (++tmr_xsec >= 600)
             {
@@ -306,16 +376,41 @@ void handle_ir_command(uint8_t key)
             } // if
             else blanking_invert = true;
             break;
+            
         case IR_CMD_7: // Set test mode for 60 seconds
             if (++tmr_xsec >= 600)
             {
                 enable_test_IR = false;
                 ir_cmd_std     = IR_CMD_IDLE;
-                clear_all_leds();
             } // if
             else enable_test_IR = true;
             break;
-        case IR_CMD_HASH:
+            
+        case IR_CMD_8: // Set Blanking Begin
+            x = encode_to_bcd2(blank_begin_h);
+            time_arr[0]  = (x >> 4) & 0x0F;
+            time_arr[1]  = x & 0x0F;
+            x = encode_to_bcd2(blank_begin_m);
+            time_arr[2]  = (x >> 4) & 0x0F;
+            time_arr[3]  = x & 0x0F;
+            time_arr_idx = 0;
+            set_time_IR  = IR_BB_TIME; // indicate change blanking-begin time
+            ir_cmd_std   = IR_CMD_CURSOR; // use cursor keys to change time
+            break;
+            
+        case IR_CMD_9: // Set Blanking End
+            x = encode_to_bcd2(blank_end_h);
+            time_arr[0]  = (x >> 4) & 0x0F;
+            time_arr[1]  = x & 0x0F;
+            x = encode_to_bcd2(blank_end_m);
+            time_arr[2]  = (x >> 4) & 0x0F;
+            time_arr[3]  = x & 0x0F;
+            time_arr_idx = 0;
+            set_time_IR  = IR_BE_TIME; // indicate change blanking-end time
+            ir_cmd_std   = IR_CMD_CURSOR; // use cursor keys to change time
+            break;
+
+        case IR_CMD_HASH: // Show date & year for 8 seconds
             if (++tmr_xsec >= 80)
             {
                 show_date_IR = IR_SHOW_TIME;
@@ -324,8 +419,54 @@ void handle_ir_command(uint8_t key)
             else if ((tmr_xsec < 20) || ((tmr_xsec >= 40) && (tmr_xsec < 60))) 
                  show_date_IR = IR_SHOW_DATE;
             else show_date_IR = IR_SHOW_YEAR;
-            if (show_date_IR != prev_show_date_IR) clear_all_leds();
-            prev_show_date_IR = show_date_IR;
+            break;
+            
+        case IR_CMD_CURSOR:  // use cursor keys to change time
+            x = time_arr[time_arr_idx]; // get current digit
+            switch (key)
+            {
+                case IR_0: case IR_1: case IR_2: case IR_3: case IR_4:
+                case IR_5: case IR_6: case IR_7: case IR_8: case IR_9:
+                    check_possible_digit(key);
+                    break;
+                case IR_UP: 
+                    check_possible_digit(++x); 
+                    break;
+                case IR_DOWN: 
+                    check_possible_digit(--x); 
+                    break;
+                case IR_LEFT: 
+                    if (time_arr_idx == 0) 
+                         time_arr_idx = 3;
+                    else time_arr_idx--;
+                    break;
+                case IR_RIGHT: 
+                    if (time_arr_idx == 3) 
+                         time_arr_idx = 0;
+                    else time_arr_idx++;
+                     break;
+                case IR_OK: 
+                    if (set_time_IR == IR_BB_TIME)
+                    {  // Blanking-time Begin
+                       blank_begin_h = 10 * time_arr[0] + time_arr[1];
+                       blank_begin_m = 10 * time_arr[2] + time_arr[3];
+                       eeprom_write_config(EEP_ADDR_BBEGIN_H,blank_begin_h);
+                       eeprom_write_config(EEP_ADDR_BBEGIN_M,blank_begin_m);
+                       set_time_IR = IR_NO_TIME;
+                       ir_cmd_std  = IR_CMD_IDLE;
+                    } // if
+                    else if (set_time_IR == IR_BE_TIME)
+                    {  // Blanking-time End
+                       blank_end_h = 10 * time_arr[0] + time_arr[1];
+                       blank_end_m = 10 * time_arr[2] + time_arr[3];
+                       eeprom_write_config(EEP_ADDR_BEND_H,blank_end_h);
+                       eeprom_write_config(EEP_ADDR_BEND_M,blank_end_m);
+                       set_time_IR = IR_NO_TIME;
+                       ir_cmd_std  = IR_CMD_IDLE;
+                    } // if
+                    break;
+                default: break; // ignore all other keys
+            } // switch
             break;
         default:
             ir_cmd_std = IR_CMD_IDLE;
@@ -532,6 +673,16 @@ void ws2812b_send_byte(uint8_t bt)
 } // ws2812b_send_byte()
 
 /*-----------------------------------------------------------------------------
+  Purpose  : This routine initializes the WS2812B LEDs by sending all zeros to it.
+  Variables: -
+  Returns  : -
+  ---------------------------------------------------------------------------*/
+void ws2812b_init(void)
+{
+    for (uint16_t i = 0; i < 3*NR_LEDS; i++) ws2812b_send_byte(0x00);
+} // ws2812b_init()
+
+/*-----------------------------------------------------------------------------
   Purpose  : This routine clears all WS2812B LEDs.
   Variables: -
   Returns  : -
@@ -593,7 +744,7 @@ void test_pattern(void)
   Variables: x: the byte to encode
   Returns  : the two encoded BCD numbers
   ------------------------------------------------------------------------*/
-uint8_t encode_to_bcd(uint8_t x)
+uint8_t encode_to_bcd2(uint8_t x)
 {
     uint8_t temp;
     uint8_t retv = 0;
@@ -604,12 +755,12 @@ uint8_t encode_to_bcd(uint8_t x)
     temp   = x - temp * 10;
     retv  |= (temp & 0x0F);
     return retv;
-} // encode_to_bcd()
+} // encode_to_bcd2()
 
 /*------------------------------------------------------------------------
-  Purpose  : Encode a byte into 2 BCD numbers.
-  Variables: x: the byte to encode
-  Returns  : the two encoded BCD numbers
+  Purpose  : Encode a byte into 4 BCD numbers.
+  Variables: x: the integer to encode
+  Returns  : the four encoded BCD numbers
   ------------------------------------------------------------------------*/
 uint16_t encode_to_bcd4(uint16_t x)
 {
@@ -646,7 +797,7 @@ void fill_led_color(uint8_t *p, uint8_t board_nr, uint8_t digit)
 {
     uint8_t lednr = board_nr * NR_LEDS_PER_BOARD;
     
-    if ((board_nr >= NR_BOARDS) || (digit >= 12)) return; // error
+    if ((board_nr >= NR_BOARDS) || (digit >= 14)) return; // error
     
     // LED chain-order is segment E, D, C, G, B, A, F, dp
     p[lednr   ] = p[lednr+ 1] = p[lednr+ 2] = p[lednr+ 3] = (ssd[digit] & SEG_E) ? led_intensity : 0x00;
@@ -711,6 +862,8 @@ void pattern_task(void)
 {
     uint8_t  x,xl,xm,cl,cm;
     uint16_t y;
+    static uint8_t blink_tmr = 0;
+    static bool    blink     = false;
     
     if (!watchdog_test)   
     {   // only refresh when watchdog_test == 0 (X0 command)
@@ -729,72 +882,122 @@ void pattern_task(void)
         } // if
         // check summertime change every minute
         if (dt.sec == 0) check_and_set_summertime(); 
-        if (show_date_IR == IR_SHOW_TIME)
-        {   // normal time mode
-            x  = encode_to_bcd(dt.sec);
-            xm = (x >> 4) & 0x0F; // msb seconds
-            xl = x & 0x0F;        // lsb seconds
-            cl = cm = COL_RED;
+        
+        clear_all_leds(); // Start with clearing all leds
+        if (++blink_tmr >= 5)
+        {
+            blink_tmr = 0;
+            blink     = !blink;
         } // if
-        else if (show_date_IR == IR_SHOW_DATE)
+
+        //-------------------------------------
+        // Fill SSD 1 and 0 (right SSDs)
+        //-------------------------------------
+        if (show_date_IR == IR_SHOW_DATE)
         {   // show day and month
             xl = 10; // SSD off
-            xm = encode_to_bcd(dt.mon) & 0x0F; // lsb month
+            xm = encode_to_bcd2(dt.mon) & 0x0F; // lsb month
             cl = cm = COL_YELLOW;
         } // else if
-        else
+        else if (show_date_IR == IR_SHOW_YEAR)
         {   // show year
             y  = encode_to_bcd4(dt.year);
             xl = 10; // SSD off
             xm = (uint8_t)(y & 0x000F); // lsb year
             cl = cm = COL_YELLOW;
-        } // else
+        } // else if
+        else if ((set_time_IR == IR_BB_TIME) || (set_time_IR == IR_BE_TIME))
+        {   // show blanking-begin or end time
+            xm = time_arr[2]; // msb of minutes
+            xl = time_arr[3]; // lsb of minutes
+            cl = cm = COL_MAGENTA; // default color
+            if (blink)
+            {   // blinking color
+                if      (time_arr_idx == 2) cm = COL_WHITE - COL_MAGENTA;
+                else if (time_arr_idx == 3) cl = COL_WHITE - COL_MAGENTA;
+            } // if
+        } // else if
+        else
+        {   // normal time mode (show_date_IR == IR_SHOW_TIME)
+            x  = encode_to_bcd2(dt.sec);
+            xm = (x >> 4) & 0x0F; // msb seconds
+            xl = x & 0x0F;        // lsb seconds
+            cl = cm = COL_RED;
+        } // if
         fill_led_array(5, cl, xl); // LSB
         fill_led_array(4, cm, xm); // MSB
 
-        if (show_date_IR == IR_SHOW_TIME)
-        {   // normal time mode
-            x  = encode_to_bcd(dt.min);
-            xm = (x >> 4) & 0x0F; // msb minutes
-            xl = x & 0x0F;        // lsb minutes
-            cl = cm = COL_GREEN;
-        } // if
-        else if (show_date_IR == IR_SHOW_DATE)
+        //-------------------------------------
+        // Fill SSD 3 and 2 (middle SSDs)
+        //-------------------------------------
+        if (show_date_IR == IR_SHOW_DATE)
         {   // show day and month
-            x  = encode_to_bcd(dt.mon);
+            x  = encode_to_bcd2(dt.mon);
             xl = (x >> 4) & 0x0F; // msb month
             xm = 11; // - (seg G)
             cl = cm = COL_YELLOW;
         } // else if
-        else
+        else if (show_date_IR == IR_SHOW_YEAR)
         {   // show year
             xl = (uint8_t)((y >> 4) & 0x0F); // year, 2nd digit from right
             xm = (uint8_t)((y >> 8) & 0x0F); // year, 3rd digit from right
             cl = cm = COL_YELLOW;
-        } // else
+        } // else if
+        else if ((set_time_IR == IR_BB_TIME) || (set_time_IR == IR_BE_TIME))
+        {   // show blanking-begin or end time
+            xm = time_arr[0]; // msb of hours
+            xl = time_arr[1]; // lsb of hours
+            cl = cm = COL_MAGENTA; // default color
+            if (blink)
+            {   // blinking color
+                if      (time_arr_idx == 0) cm = COL_WHITE - COL_MAGENTA;
+                else if (time_arr_idx == 1) cl = COL_WHITE - COL_MAGENTA;
+            } // if
+        } // else if
+        else
+        {   // normal time mode (show_date_IR == IR_SHOW_TIME)
+            x  = encode_to_bcd2(dt.min);
+            xm = (x >> 4) & 0x0F; // msb minutes
+            xl = x & 0x0F;        // lsb minutes
+            cl = cm = COL_GREEN;
+        } // if
         fill_led_array(3, cl, xl); // LSB
         fill_led_array(2, cm, xm); // MSB
 
-        if (show_date_IR == IR_SHOW_TIME)
-        {   // normal time mode
-            x  = encode_to_bcd(dt.hour);
-            xm = (x >> 4) & 0x0F; // msb hours
-            xl = x & 0x0F;        // lsb hours
-            cl = cm = COL_BLUE;
-        } // if
-        else if (show_date_IR == IR_SHOW_DATE)
+        //-------------------------------------
+        // Fill SSD 5 and 4 (left SSDs)
+        //-------------------------------------
+        if (show_date_IR == IR_SHOW_DATE)
         {   // show day and month
-            x  = encode_to_bcd(dt.day);
+            x  = encode_to_bcd2(dt.day);
             xm = (x >> 4) & 0x0F; // msb month
             xl = x & 0x0F;        // lsb month
             cl = cm = COL_YELLOW;
         } // else if
-        else
+        else if (show_date_IR == IR_SHOW_YEAR)
         {   // show year
             xl = (uint8_t)((y >> 12) & 0x0F); // msb year
             xm = 10;  // SSD off
             cl = cm = COL_YELLOW;
         } // else
+        else if (set_time_IR == IR_BB_TIME)
+        {   // show blanking-begin time
+            xl = xm = 12; // bb
+            cl = cm = COL_YELLOW;
+        } // else if
+        else if (set_time_IR == IR_BE_TIME)
+        {   // show blanking-end time
+            xm = 12; // b
+            xl = 13; // E
+            cl = cm = COL_YELLOW;
+        } // else if
+        else
+        {   // normal time mode (show_date_IR == IR_SHOW_TIME)
+            x  = encode_to_bcd2(dt.hour);
+            xm = (x >> 4) & 0x0F; // msb hours
+            xl = x & 0x0F;        // lsb hours
+            cl = cm = COL_BLUE;
+        } // if
         fill_led_array(1, cl, xl); // LSB
         fill_led_array(0, cm, xm); // MSB
     } // else
@@ -1201,7 +1404,8 @@ int main(void)
     setup_timer2();            // Set Timer 2 to 1 kHz for scheduler
     setup_timer3();            // Set Timer 3 to 20 kHz for IRDA
     uart_init();               // Init. UART-peripheral
-
+    ws2812b_init();            // Init. the WS2812B LEDs
+    
     led_intensity = (uint8_t)eeprom_read_config(EEP_ADDR_INTENSITY);
     if (!led_intensity)
     {   // First time power-up: eeprom value is 0x00
@@ -1213,12 +1417,12 @@ int main(void)
     blank_end_m   = (uint8_t)eeprom_read_config(EEP_ADDR_BEND_M);
     
     // Initialise all tasks for the scheduler
-    scheduler_init();                         // clear task_list struct
-    add_task(pattern_task, "PTRN"  , 0, 100); // every 100 msec.
-    add_task(ws2812_task , "WS2812",25, 500); // every 100 msec.
-    add_task(ir_task     , "IR"    ,50, 100); // every 100 msec.
-    add_task(clock_task  , "CLK"   ,75,1000); // every second
-    init_watchdog();                          // init. the IWDG watchdog
+    scheduler_init();                          // clear task_list struct
+    add_task(pattern_task, "PTRN"  ,100, 100); // every 100 msec.
+    add_task(ws2812_task , "WS2812",125, 500); // every 500 msec.
+    add_task(ir_task     , "IR"    ,150, 100); // every 100 msec.
+    add_task(clock_task  , "CLK"   , 75,1000); // every second
+    init_watchdog();                           // init. the IWDG watchdog
     __enable_interrupt();
 
     i2c_err = i2c_reset_bus(); // Init. I2C-peripheral

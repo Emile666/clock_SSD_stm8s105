@@ -210,25 +210,34 @@
 #define IR_CMD_5         (6)
 #define IR_CMD_6         (7) /* Invert Blanking-Active signal */
 #define IR_CMD_7         (8) /* Enable Testpattern */
-#define IR_CMD_8         (9) /* Enable Testpattern */
-#define IR_CMD_9        (10) /*  */
+#define IR_CMD_8         (9) /* Set blanking-begin time */
+#define IR_CMD_9        (10) /* Set blanking-end time */
 #define IR_CMD_HASH     (11) /* Show date & year for 10 seconds */
+#define IR_CMD_CURSOR   (12)
 
+// Defines for show_date_IR variable
 #define IR_SHOW_TIME     (0)
 #define IR_SHOW_DATE     (1)
 #define IR_SHOW_YEAR     (2)
 
-#define COL_RED          (0)
-#define COL_GREEN        (1)
-#define COL_BLUE         (2)
-#define COL_YELLOW       (3) /* red + green  */
-#define COL_MAGENTA      (4) /* red + blue   */
-#define COL_CYAN         (5) /* green + blue */
-#define COL_WHITE        (6) /* red + green + blue */
+// Defines for set_time_IR variable
+#define IR_NO_TIME      (0)
+#define IR_BB_TIME      (1)
+#define IR_BE_TIME      (2)
+
+#define COL_RED          (1)
+#define COL_GREEN        (2)
+#define COL_YELLOW       (COL_RED + COL_GREEN)
+#define COL_BLUE         (4)
+#define COL_MAGENTA      (COL_RED + COL_BLUE)
+#define COL_CYAN         (COL_GREEN + COL_BLUE)
+#define COL_WHITE        (COL_RED + COL_GREEN + COL_BLUE)
                          
 void     print_date_and_time(void);
 void     print_dow(uint8_t dow);
 uint16_t cmin(uint8_t h, uint8_t m);
+uint8_t  encode_to_bcd2(uint8_t x);
+uint16_t encode_to_bcd4(uint16_t x);
 bool     blanking_active(void);
 void     clear_all_leds(void);
 void     check_and_set_summertime(void);
