@@ -1,7 +1,9 @@
 #ifndef CLOCK_SSD_H
 #define CLOCK_SSD_H
 /*-----------------------------------------------------------------------------------------------
-  Schematic of the connections to the MCU.
+  Schematic of the connections to the STM8S105C6T6 MCU.
+  Pin count: 48, max. nr. of GPIO: 38
+  Flash: 32K, EEPROM: 1024 bytes, RAM: 2K
   
                                  STM8S105C6T6
       MCU pin-name            Function    |    MCU pin-name        Function
@@ -115,12 +117,14 @@
 //-------------------------------------------------
 // Address values (16-bit) for EEPROM
 //-------------------------------------------------
-#define EEP_ADDR_INTENSITY  (0x10) /* LED intensity */
-#define EEP_ADDR_BBEGIN_H   (0x12) /* Blanking begin-time hours */
-#define EEP_ADDR_BBEGIN_M   (0x13) /* Blanking begin-time minutes */
-#define EEP_ADDR_BEND_H     (0x14) /* Blanking end-time hours */
-#define EEP_ADDR_BEND_M     (0x15) /* Blanking end-time minutes */
-#define EEP_ADDR_DST_ACTIVE (0x20) /* 1 = Day-light Savings Time active */
+#define EEP_ADDR_INTENSITY_B (0x0C) /* LED intensity Blue */
+#define EEP_ADDR_INTENSITY_G (0x0E) /* LED intensity Green */
+#define EEP_ADDR_INTENSITY_R (0x10) /* LED intensity Red */
+#define EEP_ADDR_BBEGIN_H    (0x12) /* Blanking begin-time hours */
+#define EEP_ADDR_BBEGIN_M    (0x13) /* Blanking begin-time minutes */
+#define EEP_ADDR_BEND_H      (0x14) /* Blanking end-time hours */
+#define EEP_ADDR_BEND_M      (0x15) /* Blanking end-time minutes */
+#define EEP_ADDR_DST_ACTIVE  (0x20) /* 1 = Day-light Savings Time active */
  
 //-------------------------------------------------
 // VS1838B IR infrared remote
@@ -214,11 +218,13 @@
 #define IR_CMD_9        (10) /* Set blanking-end time */
 #define IR_CMD_HASH     (11) /* Show date & year for 10 seconds */
 #define IR_CMD_CURSOR   (12)
-
+#define IR_CMD_COL_CURSOR (13)
+                         
 // Defines for show_date_IR variable
 #define IR_SHOW_TIME     (0)
 #define IR_SHOW_DATE     (1)
 #define IR_SHOW_YEAR     (2)
+#define IR_SHOW_TEMP     (3)
 
 // Defines for set_time_IR variable
 #define IR_NO_TIME      (0)
