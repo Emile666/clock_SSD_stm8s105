@@ -10,9 +10,9 @@ extern uint32_t t2_millis;         // Updated in TMR2 interrupt
 
 char     rs232_inbuf[UART_BUFLEN]; // buffer for RS232 commands
 uint8_t  rs232_ptr     = 0;        // index in RS232 buffer
-char     ssd_clk_ver[] = "Clock SSD S105 v0.44\n";
-// Bit-order: 0abcdefg. Digits: 0123456789 -bE°C
-uint8_t  ssd[16] = {0x7E,0x30,0x6D,0x79,0x33,0x5B,0x5F,0x70,0x7F,0x7B,0x00,0x01,0x1F,0x4F,0x63,0x4E};
+char     ssd_clk_ver[] = "Clock SSD S105 v0.45\n";
+// Bit-order: 0abcdefg. Digits: 0123456789 -bE°CPv
+uint8_t  ssd[18] = {0x7E,0x30,0x6D,0x79,0x33,0x5B,0x5F,0x70,0x7F,0x7B,0x00,0x01,0x1F,0x4F,0x63,0x4E,0x67,0x3E};
 
 uint8_t led_r[NR_LEDS];           // Array with 8-bit red colour for all WS2812
 uint8_t led_g[NR_LEDS];           // Array with 8-bit green colour for all WS2812
@@ -29,8 +29,12 @@ bool    dst_active  = false;      // true = Daylight Saving Time active
 Time    dt;                       // Struct with time and date values, updated every sec.
 bool    real_binary = false;
 bool    powerup     = true;
+bool    set_col_white = false;   // true = esp8266 time update was successful
 bool    blanking_invert = false; // Invert blanking-active IR-command
 bool    enable_test_IR  = false; // Enable Test-pattern IR-command
+bool    last_esp8266    = false; // true = last esp8266 command was successful
+uint8_t esp8266_std     = ESP8266_INIT; // update time from ESP8266 every 18 hours
+uint16_t esp8266_tmr    = 0;            // timer for updating ESP8266
 
 uint8_t blank_begin_h  = 23;
 uint8_t blank_begin_m  = 30;
@@ -354,9 +358,21 @@ void handle_ir_command(uint8_t key)
     {
         case IR_CMD_IDLE:
             if (key == IR_0)      ir_cmd_std = IR_CMD_0;
-            else if (key == IR_1) ir_cmd_std = IR_CMD_1;
-            else if (key == IR_2) ir_cmd_std = IR_CMD_2;
-            else if (key == IR_3) ir_cmd_std = IR_CMD_3;
+            else if (key == IR_1) 
+            {
+                ir_cmd_std = IR_CMD_1; // show version number for 5 seconds
+                tmr_xsec   = 0;
+            } // else if
+            else if (key == IR_2) 
+            {
+                ir_cmd_std = IR_CMD_2; // show last response status from ESP8266
+                tmr_xsec = 0;
+            } // else if
+            else if (key == IR_3) 
+            {
+                uart_printf("e0\n");   // Get Date & Time from ESP8266 NTP server
+                tmr_xsec = 0;
+            } // else if
             else if (key == IR_4) 
             {
                 ir_cmd_std = IR_CMD_4; // Show temperature for 5 seconds 
@@ -398,12 +414,43 @@ void handle_ir_command(uint8_t key)
             break;
             
         case IR_CMD_1:
+            if (++tmr_xsec >= 50)
+            {
+                show_date_IR = IR_SHOW_TIME;
+                ir_cmd_std   = IR_CMD_IDLE;
+            } // if
+            else
+            {   // no time-out yet
+                time_arr[0] = 10; // space
+                time_arr[1] = 17; // v
+                x = strlen(ssd_clk_ver);
+                time_arr[2] = (uint8_t)(ssd_clk_ver[x-5] - '0');
+                time_arr[3] = (uint8_t)(ssd_clk_ver[x-3] - '0');
+                time_arr[4] = (uint8_t)(ssd_clk_ver[x-2] - '0');
+                time_arr[5] = 10; // space
+                show_date_IR = IR_SHOW_VER;
+            } // else
             break;
             
-        case IR_CMD_2:
-             break;
+        case IR_CMD_2: // show last response status from ESP8266
+            if (++tmr_xsec >= 30)
+            {
+                show_date_IR = IR_SHOW_TIME;
+                ir_cmd_std   = IR_CMD_IDLE;
+            } // if
+            else
+            {   // no time-out yet
+             time_arr[0] = 13; // E
+             time_arr[1] = 5;  // S
+             time_arr[2] = 16; // P
+             time_arr[3] = 0;  // 0
+             time_arr[4] = 1;  // 1
+             time_arr[5] = (last_esp8266) ? 1 : 0;
+             show_date_IR = IR_SHOW_ESP_STAT;
+            } // else
+            break;
             
-        case IR_CMD_3: //
+        case IR_CMD_3:            
             break;
             
         case IR_CMD_4: // Show temperature for 5 seconds
@@ -913,7 +960,7 @@ void fill_led_color(uint8_t *p, uint8_t board_nr, uint8_t digit, uint8_t intensi
 {
     uint8_t lednr = board_nr * NR_LEDS_PER_BOARD;
     
-    if ((board_nr >= NR_BOARDS) || (digit >= 16)) return; // error
+    if ((board_nr >= NR_BOARDS) || (digit >= sizeof(ssd))) return; // error
     
     // LED chain-order is segment E, D, C, G, B, A, F, dp
     p[lednr   ] = p[lednr+ 1] = p[lednr+ 2] = p[lednr+ 3] = (ssd[digit] & SEG_E) ? intensity : 0x00;
@@ -948,21 +995,21 @@ void fill_led_array(uint8_t board_nr, uint8_t color, uint8_t digit, bool dp)
         fill_led_color(led_b, board_nr, digit, led_intensity_b, dp);
         break;
     case COL_YELLOW:
-        fill_led_color(led_r, board_nr, digit, led_intensity_r, dp);
-        fill_led_color(led_g, board_nr, digit, led_intensity_g, dp);
+        fill_led_color(led_r, board_nr, digit, led_intensity_r>>1, dp);
+        fill_led_color(led_g, board_nr, digit, led_intensity_g>>1, dp);
         break;
     case COL_MAGENTA:
-        fill_led_color(led_r, board_nr, digit, led_intensity_r, dp);
-        fill_led_color(led_b, board_nr, digit, led_intensity_b, dp);
+        fill_led_color(led_r, board_nr, digit, led_intensity_r>>1, dp);
+        fill_led_color(led_b, board_nr, digit, led_intensity_b>>1, dp);
         break;
     case COL_CYAN:
-        fill_led_color(led_g, board_nr, digit, led_intensity_g, dp);
-        fill_led_color(led_b, board_nr, digit, led_intensity_b, dp);
+        fill_led_color(led_g, board_nr, digit, led_intensity_g>>1, dp);
+        fill_led_color(led_b, board_nr, digit, led_intensity_b>>1, dp);
         break;
     default: // COL_WHITE:
-        fill_led_color(led_r, board_nr, digit, led_intensity_r, dp);
-        fill_led_color(led_g, board_nr, digit, led_intensity_g, dp);
-        fill_led_color(led_b, board_nr, digit, led_intensity_b, dp);
+        fill_led_color(led_r, board_nr, digit, led_intensity_r>>1, dp);
+        fill_led_color(led_g, board_nr, digit, led_intensity_g>>1, dp);
+        fill_led_color(led_b, board_nr, digit, led_intensity_b>>1, dp);
         break;
     } // switch
 } // fill_led_array()
@@ -983,6 +1030,7 @@ void pattern_task(void)
     bool     dpl = false;
     static uint8_t blink_tmr = 0;
     static bool    blink     = false;
+    static uint8_t col_white_tmr = 0;
     
     if (!watchdog_test)   
     {   // only refresh when watchdog_test == 0 (X0 command)
@@ -1033,6 +1081,18 @@ void pattern_task(void)
             cl = cm = COL_CYAN;
             dpl = true; // set decimal point
         } // else if
+        else if (show_date_IR == IR_SHOW_ESP_STAT)
+        {   // show status of last ESP8266 response
+            xm = time_arr[0]; // esp01 msb
+            xl = time_arr[1]; // esp01 lsb
+            cl = cm = COL_YELLOW;
+        } // else if
+        else if (show_date_IR == IR_SHOW_VER)
+        {   // show version info
+            xm = time_arr[0]; // space
+            xl = time_arr[1]; // v
+            cl = cm = COL_YELLOW;
+        } // else if
         else if (set_time_IR == IR_BB_TIME)
         {   // show blanking-begin time
             xl = xm = 12; // bb
@@ -1060,7 +1120,9 @@ void pattern_task(void)
             x  = encode_to_bcd2(dt.hour);
             xm = (x >> 4) & 0x0F; // msb hours
             xl = x & 0x0F;        // lsb hours
-            cl = cm = COL_BLUE;
+            if (set_col_white)
+                 cl = cm = COL_WHITE;
+            else cl = cm = COL_BLUE;
         } // if
         fill_led_array(0, cm, xm, dpm); // MSB
         fill_led_array(1, cl, xl, dpl); // LSB
@@ -1087,6 +1149,19 @@ void pattern_task(void)
             xl = time_arr[3]; // lsb of temp. fraction
             cl = cm = COL_CYAN;
             dpl = dpm = false;
+        } // else if
+        else if (show_date_IR == IR_SHOW_ESP_STAT)
+        {   // show status of last ESP8266 response
+            xm = time_arr[2]; // ESP01 msb
+            xl = time_arr[3]; // ESP01 lsb
+            cl = cm = COL_YELLOW;
+        } // else if
+        else if (show_date_IR == IR_SHOW_VER)
+        {   // show version info
+            xm = time_arr[2]; // version info
+            xl = time_arr[3]; // version info
+            cl = cm = COL_MAGENTA;
+            dpm = true;
         } // else if
         else if ((set_time_IR == IR_BB_TIME) || (set_time_IR == IR_BE_TIME))
         {   // show blanking-begin or end time
@@ -1116,7 +1191,9 @@ void pattern_task(void)
             x  = encode_to_bcd2(dt.min);
             xm = (x >> 4) & 0x0F; // msb minutes
             xl = x & 0x0F;        // lsb minutes
-            cl = cm = COL_GREEN;
+            if (set_col_white)
+                 cl = cm = COL_WHITE;
+            else cl = cm = COL_GREEN;
         } // if
         fill_led_array(2, cm, xm, dpm); // MSB
         fill_led_array(3, cl, xl, dpl); // LSB
@@ -1141,6 +1218,23 @@ void pattern_task(void)
             xm = 14; // degree symbol
             xl = 15; // C
             cl = cm = COL_YELLOW;
+        } // else if
+        else if (show_date_IR == IR_SHOW_ESP_STAT)
+        {   // show status of last ESP8266 response
+            xm = time_arr[4]; // ESP01 msb
+            xl = time_arr[5]; // ESP01 lsb
+            cm = COL_YELLOW;
+            dpm = true;       // set decimal-point
+            if (xl == 1) 
+                 cl = COL_GREEN; // last response ok
+            else cl = COL_RED;   // last response not ok
+        } // else if
+        else if (show_date_IR == IR_SHOW_VER)
+        {   // show version info
+            xm = time_arr[4]; // version info
+            xl = time_arr[5]; // version info
+            cl = cm = COL_MAGENTA;
+            dpm = dpl = false;
         } // else if
         else if ((set_time_IR == IR_BB_TIME) || (set_time_IR == IR_BE_TIME))
         {   // show blanking-begin or end time
@@ -1170,7 +1264,16 @@ void pattern_task(void)
             x  = encode_to_bcd2(dt.sec);
             xm = (x >> 4) & 0x0F; // msb seconds
             xl = x & 0x0F;        // lsb seconds
-            cl = cm = COL_RED;
+            if (set_col_white)
+            {
+                cl = cm = COL_WHITE;
+                if (++col_white_tmr > 10)
+                {
+                    col_white_tmr = 0;
+                    set_col_white = false;
+                } // if
+            } // else
+            else cl = cm = COL_RED;
         } // if
         fill_led_array(4, cm, xm, dpm); // MSB
         fill_led_array(5, cl, xl, dpl); // LSB
@@ -1295,7 +1398,7 @@ void check_and_set_summertime(void)
 /*-----------------------------------------------------------------------------
   Purpose  : This routine reads the date and time info from the DS3231 RTC and
              stores this info into the global variables seconds, minutes and
-             hours.
+             hours. It is called every second
   Variables: 
     seconds: global variable [0..59]
     minutes: global variable [0..59]
@@ -1306,6 +1409,22 @@ void clock_task(void)
 {
     ds3231_gettime(&dt);
     powerup = false;
+    switch (esp8266_std)
+    {
+    case ESP8266_INIT:
+        if (++esp8266_tmr >= 65530) // approx. 18 hours and 12 minutes
+           esp8266_std = ESP8266_UPDATE;
+        break;
+    case ESP8266_UPDATE:
+        uart_printf("e0\n"); // update time from ESP8266
+        esp8266_tmr = 0;
+        esp8266_std = ESP8266_INIT;
+        break;
+    default: 
+        esp8266_tmr = 0;
+        esp8266_std = ESP8266_INIT;
+        break;
+    } // switch
 } // clock_task()
 
 /*-----------------------------------------------------------------------------
@@ -1465,6 +1584,52 @@ void execute_single_command(char *s)
                  } // switch
                  break;
   
+        case 'e': // The e commands are responses back from the ESP8266 NTP Server
+                  // Possible response: "e0 26-05-2021.15:55:23"
+		 switch (num)
+		 {
+                 case 0: // E0 = Get Date & Time from the ESP8266
+                    s1 = strtok(&s[3],sep);
+                    d  = atoi(s1);
+                    s1 = strtok(NULL ,sep);
+                    m  = atoi(s1);
+                    s1 = strtok(NULL ,sep);
+                    y  = atoi(s1);
+                    // Second part is the time from the ESP8266
+                    s1 = strtok(NULL,sep);
+                    h  = atoi(s1);
+                    if (dst_active)
+                    {
+                        if (h == 23) 
+                             h = 0;
+                        else h++;
+                    } // if
+                    s1  = strtok(NULL ,sep);
+                    m   = atoi(s1);
+                    s1  = strtok(NULL ,sep);
+                    sec = atoi(s1);
+                    if (sec == 59) // add 1 second for the transmit delay
+                         sec = 0;
+                    else sec++;
+                    if (y > 2020)
+                    {   // Valid Date & Time received
+                        ds3231_setdate(d,m,y);   // write to DS3231 IC
+                        ds3231_settime(h,m,sec); // write to DS3231 IC
+                        last_esp8266 = true;     // response was successful
+                        set_col_white = true;    // show briefly on display
+                        esp8266_tmr = 0;         // Reset update timer
+                    } // if
+                    else last_esp8266 = false;   // response not successful
+                    uart_printf("Date: ");
+                    print_dow(ds3231_calc_dow(d,m,y));
+                    sprintf(s2," %d-%d-%d ",d,m,y);
+                    uart_printf(s2);
+                    sprintf(s2,"Time: %d:%d:%d\n",h,m,sec);
+                    uart_printf(s2);
+                    break;
+                 } // switch
+                 break;
+                        
 	case 'i': // "ix y": set intensity of WS2812 LEDs between 1..39
                   temp = atoi(&s[3]);
                   // x=0: Intensity of Red Leds

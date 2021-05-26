@@ -6,9 +6,9 @@
 #include <stdbool.h>
 #include "main.h"
 
-#define UART_BUFLEN (15)
-#define TX_BUF_SIZE (20)
-#define RX_BUF_SIZE (20)
+#define UART_BUFLEN (25)
+#define TX_BUF_SIZE (30)
+#define RX_BUF_SIZE (30)
 
 void    uart_init(void);
 void    uart_printf(char *s);

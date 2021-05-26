@@ -225,7 +225,9 @@
 #define IR_SHOW_DATE     (1)
 #define IR_SHOW_YEAR     (2)
 #define IR_SHOW_TEMP     (3)
-
+#define IR_SHOW_VER      (4)
+#define IR_SHOW_ESP_STAT (5)
+                         
 // Defines for set_time_IR variable
 #define IR_NO_TIME      (0)
 #define IR_BB_TIME      (1)
@@ -238,6 +240,9 @@
 #define COL_MAGENTA      (COL_RED + COL_BLUE)
 #define COL_CYAN         (COL_GREEN + COL_BLUE)
 #define COL_WHITE        (COL_RED + COL_GREEN + COL_BLUE)
+                         
+#define ESP8266_INIT   (0)
+#define ESP8266_UPDATE (1)
                          
 void     print_date_and_time(void);
 void     print_dow(uint8_t dow);

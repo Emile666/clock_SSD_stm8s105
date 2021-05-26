@@ -8,6 +8,9 @@
 - ESP8266 interface for reading date and time from NTP time-server
 
 # IR-codes and commands
+- 1 = Show version number of current firmware
+- 2 = Show status of last ESP8266 update. Time is retrieved from ESP8266 approx. every 18 hours
+- 3 = Get Date and Time from ESP8266 NTP Server and update DS3231 RTC. Displays shows time in white for a second if successful.
 - 4 = Show temperature for 5 seconds.
 - 5 = Set intensity of colors (01 - 39). Use Up, Down, Ok, 0-9 to set a digit.
 - 6 = Invert blanking active/not-active signal (on=off, off=on) for 60 seconds.
@@ -25,6 +28,7 @@ IAR development environment for STM8
 - Connect GPIO_2 to VCC, leave RESET open and CH_PD to VCC.
 - Connect Vcc to +3.3V
 - Connect TX to RX and RX to TX of UART-adapter
+- Use file esp8266_ntp_server.ino
 
 ![esp8266 pinout](img/esp01_pinout.jpg)<br>
 *ESP01 Pinout*
