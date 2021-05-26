@@ -8,13 +8,13 @@
 - ESP8266 interface for reading date and time from NTP time-server
 
 # IR-codes and commands
-4 = Show temperature for 5 seconds.
-5 = Set intensity of colors (01 - 39). Use Up, Down, Ok, 0-9 to set a digit.
-6 = Invert blanking active/not-active signal (on=off, off=on) for 60 seconds.
-7 = Test mode for 60 seconds.
-8 = Set Blanking-begin time. Use Up, Down, Left, Right, Ok, 0-9 to set a digit.
-8 = Set Blanking-end time. Use Up, Down, Left, Right, Ok, 0-9 to set a digit.
-\# = Show date & year for 8 seconds.
+- 4 = Show temperature for 5 seconds.
+- 5 = Set intensity of colors (01 - 39). Use Up, Down, Ok, 0-9 to set a digit.
+- 6 = Invert blanking active/not-active signal (on=off, off=on) for 60 seconds.
+- 7 = Test mode for 60 seconds.
+- 8 = Set Blanking-begin time. Use Up, Down, Left, Right, Ok, 0-9 to set a digit.
+- 8 = Set Blanking-end time. Use Up, Down, Left, Right, Ok, 0-9 to set a digit.
+- \# = Show date & year for 8 seconds.
 
 # Development Environment
 IAR development environment for STM8 
