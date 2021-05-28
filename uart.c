@@ -1,12 +1,23 @@
-//
-//  This program shows how you can output a message on the UART on
-//	the STM8S microcontroller.
-//
-//  This software is provided under the CC BY-SA 3.0 licence.  A
-//  copy of this licence can be found at:
-//
-//  http://creativecommons.org/licenses/by-sa/3.0/legalcode
-//
+/*==================================================================
+  File Name    : uart.c
+  Author       : Emile
+  ------------------------------------------------------------------
+  Purpose : This file contains the UART related functions 
+            for the STM8 uC.
+  ------------------------------------------------------------------
+  This is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+ 
+  This software is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+ 
+  You should have received a copy of the GNU General Public License
+  along with this software.  If not, see <http://www.gnu.org/licenses/>.
+  ==================================================================*/ 
 #include <stdio.h>
 #include "delay.h"
 #include "uart.h"

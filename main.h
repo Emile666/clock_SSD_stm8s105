@@ -1,6 +1,25 @@
 #ifndef CLOCK_SSD_H
 #define CLOCK_SSD_H
-/*-----------------------------------------------------------------------------------------------
+/*==================================================================
+  File Name    : main.h
+  Author       : Emile
+  ------------------------------------------------------------------
+  Purpose : This is the header-file for main.c. It contains the
+            project-level defines.
+  ------------------------------------------------------------------
+  This is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+ 
+  This software is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+ 
+  You should have received a copy of the GNU General Public License
+  along with this software.  If not, see <http://www.gnu.org/licenses/>.
+  =========================================================================
   Schematic of the connections to the STM8S105C6T6 MCU.
   Pin count: 48, max. nr. of GPIO: 38
   Flash: 32K, EEPROM: 1024 bytes, RAM: 2K
@@ -35,7 +54,7 @@
    24 PE6/AIN9                            | 25 PE5/SPI_NSS             - 
    ---------------------------------------------------------------------
    NOTE  : PA1, PA2, PG0 and PG1 do NOT have interrupt capability!
------------------------------------------------------------------------------------------------*/
+  -------------------------------------------------------------------------*/
 #include <iostm8s105c6.h>
 #include <intrinsics.h> 
 #include <stdint.h>
@@ -44,7 +63,7 @@
 #include <stdbool.h>
 #include <ctype.h>
 
-//-----------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------
 // LED 00 - LED 03 : segment e
 // LED 04 - LED 07 : segment d
 // LED 08 - LED 11 : segment c
@@ -53,7 +72,7 @@
 // LED 20 - LED 23 : segment a
 // LED 24 - LED 27 : segment f
 // LED 28          : decimal-point
-//-----------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------
 #define SEG_DP  (0x80)
 #define SEG_A   (0x40)
 #define SEG_B   (0x20)
@@ -72,9 +91,33 @@
 #define SQW     (0x80) /* PE7 */
 #define IRQ_LED (0x40) /* PE6 */
 
-#define DI_3V3b (PC_ODR_ODR3)
-#define IR_RCVb (PC_IDR_IDR4)
+#define DI_3V3b  (PC_ODR_ODR3)
+#define IR_RCVb  (PC_IDR_IDR4)
 #define IRQ_LEDb (PE_ODR_ODR6)
+
+//-----------------------------------------------------------------
+// Constants for ssd[] array with characters for 7-segment display
+//-----------------------------------------------------------------
+#define DIG_0      (0)
+#define DIG_1      (1)
+#define DIG_2      (2)
+#define DIG_3      (3)
+#define DIG_4      (4)
+#define DIG_5      (5)
+#define DIG_6      (6)
+#define DIG_7      (7)
+#define DIG_8      (8)
+#define DIG_9      (9)
+#define DIG_SPACE (10)
+#define DIG_MINUS (11)
+#define DIG_b     (12)
+#define DIG_E     (13)
+#define DIG_DEGR  (14)
+#define DIG_C     (15)
+#define DIG_P     (16)
+#define DIG_V     (17)
+#define DIG_t     (18)
+#define DIG_S     (DIG_5)
 
 //-----------------------------------------------------------------------------------------------
 // https://wp.josh.com/2014/05/13/ws2812-neopixels-are-not-so-finicky-once-you-get-to-know-them/
@@ -86,7 +129,6 @@
 // T1H	  1 code ,high voltage time	550	700	5.500	ns    760
 // TLD	  data, low voltage time	450	600	5.000	ns    1120
 // TLL	  latch, low voltage time	6.000			ns    3120 (max)
-//
 //-----------------------------------------------------------------------------------------------
 #define wait_T0H  __asm("nop\n nop\n nop\n nop\n nop")
 #define wait_T1H  wait_T0H; wait_T0H; __asm("nop")
@@ -158,13 +200,17 @@
 #define RPT_SPACE_LTICKS  ((NEC_RPT_SPACE/CLK_TICKS)  - 10) /* approx. 14 % less */
 #define RPT_SPACE_HTICKS  ((NEC_RPT_SPACE/CLK_TICKS)  + 10) /* approx. 14 % more */
                          
+//-----------------------------------------------------------------------
 // ISR State-Machine : Receiver States
+//-----------------------------------------------------------------------
 #define STATE_IDLE      0
 #define STATE_MARK      1
 #define STATE_SPACE     2
 #define STATE_STOP      3
 
-// KEY values for remote control
+//-----------------------------------------------------------------------
+// KEY values for remote control, used in ir_key() and handle_ir_command()
+//-----------------------------------------------------------------------
 #define IR_CHARS         "0123456789ULRDOAHX?"
 #define IR_0             (0x00)
 #define IR_1		 (0x01)
@@ -186,6 +232,9 @@
 #define IR_REPEAT        (0x11)
 #define IR_NONE          (0x12)
 
+//-----------------------------------------------------------------------
+// Raw 32 bits codes from IR receiver, stored in ir_result
+//-----------------------------------------------------------------------
 #define IR_CODE_0        (0x00FF4AB5)
 #define IR_CODE_1	 (0x00FF6897)
 #define IR_CODE_2	 (0x00FF9867)
@@ -205,13 +254,16 @@
 #define IR_CODE_HASH     (0x00FF52AD)
 #define IR_CODE_REPEAT   (0xFFFFFFFF)
 
+//-----------------------------------------------------------------------
+// States for ir_cmd_std in handle_ir_command()
+//-----------------------------------------------------------------------
 #define IR_CMD_IDLE      (0)
-#define IR_CMD_0         (1)
-#define IR_CMD_1         (2)
-#define IR_CMD_2         (3)
-#define IR_CMD_3         (4)
-#define IR_CMD_4         (5)
-#define IR_CMD_5         (6)
+#define IR_CMD_0         (1) 
+#define IR_CMD_1         (2) /* Show version number for 5 seconds */
+#define IR_CMD_2         (3) /* Show last response from ESP8266 */
+#define IR_CMD_3         (4) /* Get Date & Time from ESP8266 NTP Server */
+#define IR_CMD_4         (5) /* Show DS3231 Temperature for 5 seconds */
+#define IR_CMD_5         (6) /* Set intensity of colors */
 #define IR_CMD_6         (7) /* Invert Blanking-Active signal */
 #define IR_CMD_7         (8) /* Enable Testpattern */
 #define IR_CMD_8         (9) /* Set blanking-begin time */
@@ -220,19 +272,26 @@
 #define IR_CMD_CURSOR   (12)
 #define IR_CMD_COL_CURSOR (13)
                          
+//-----------------------------------------------------------------------
 // Defines for show_date_IR variable
-#define IR_SHOW_TIME     (0)
-#define IR_SHOW_DATE     (1)
-#define IR_SHOW_YEAR     (2)
-#define IR_SHOW_TEMP     (3)
-#define IR_SHOW_VER      (4)
-#define IR_SHOW_ESP_STAT (5)
+//-----------------------------------------------------------------------
+#define IR_SHOW_TIME     (0) /* Default, show normal time */
+#define IR_SHOW_DATE     (1) /* Show day and month */
+#define IR_SHOW_YEAR     (2) /* Show year */
+#define IR_SHOW_TEMP     (3) /* Show DS3231 temperature */
+#define IR_SHOW_VER      (4) /* Show version number */
+#define IR_SHOW_ESP_STAT (5) /* Show last response from ESP8266: 1 = ok */
                          
+//-----------------------------------------------------------------------
 // Defines for set_time_IR variable
-#define IR_NO_TIME      (0)
-#define IR_BB_TIME      (1)
-#define IR_BE_TIME      (2)
+//-----------------------------------------------------------------------
+#define IR_NO_TIME      (0) /* Default option */
+#define IR_BB_TIME      (1) /* Show Blanking begin-time */
+#define IR_BE_TIME      (2) /* Show Blanking end-time */
 
+//-----------------------------------------------------------------------
+// Definitions for WS2812 colors
+//-----------------------------------------------------------------------
 #define COL_RED          (1)
 #define COL_GREEN        (2)
 #define COL_YELLOW       (COL_RED + COL_GREEN)
@@ -241,16 +300,52 @@
 #define COL_CYAN         (COL_GREEN + COL_BLUE)
 #define COL_WHITE        (COL_RED + COL_GREEN + COL_BLUE)
                          
-#define ESP8266_INIT   (0)
-#define ESP8266_UPDATE (1)
-                         
-void     print_date_and_time(void);
-void     print_dow(uint8_t dow);
-uint16_t cmin(uint8_t h, uint8_t m);
+//-----------------------------------------------------------------------
+// States for esp8266_std in clock_task()
+//-----------------------------------------------------------------------
+#define ESP8266_INIT    (0) /* Default state */
+#define ESP8266_UPDATE  (1) /* Update time from ESP8266 NTP Server */
+
+#define ESP8266_HOURS   (12) /* Time in hours between updates from ESP8266 */
+#define ESP8266_MINUTES (ESP8266_HOURS * 60)
+#define ESP8266_SECONDS ((uint16_t)ESP8266_HOURS * 3600)
+
+//-----------------------------------------------------------------------
+// Function prototypes
+//-----------------------------------------------------------------------
+bool     check_ticks(uint16_t val, uint16_t low, uint16_t high);
+bool     ir_decode_nec(void);
+uint8_t  ir_key(void);
+void     check_possible_digit(uint8_t digit);
+void     check_possible_col_digit(uint8_t digit);
+void     handle_ir_command(uint8_t key);
+
+void     initialise_system_clock(void);
+void     setup_timer2(void);
+void     setup_timer3(void);
+void     setup_output_ports(void);
+void     init_watchdog(void);
+
+void     ws2812b_send_byte(uint8_t bt);
+void     ws2812b_init(void);
+void     clear_all_leds(void);
+void     test_pattern(void);
+
 uint8_t  encode_to_bcd2(uint8_t x);
 uint16_t encode_to_bcd4(uint16_t x);
+void     fill_led_color(uint8_t *p, uint8_t board_nr, uint8_t digit, uint8_t intensity, bool dp);
+void     fill_led_array(uint8_t board_nr, uint8_t color, uint8_t digit, bool dp);
+
+void     ir_task(void);
+void     pattern_task(void);
+void     ws2812_task(void);
+void     clock_task(void);
+
+void     check_and_set_summertime(void);
+void     print_dow(uint8_t dow);
+void     print_date_and_time(void);
+uint16_t cmin(uint8_t h, uint8_t m);
 bool     blanking_active(void);
-void     clear_all_leds(void);
 void     check_and_set_summertime(void);
 void     execute_single_command(char *s);
 void     rs232_command_handler(void);

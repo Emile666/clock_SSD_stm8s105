@@ -1,3 +1,22 @@
+/*==================================================================
+  File Name    : main.c
+  Author       : Emile
+  ------------------------------------------------------------------
+  Purpose : This is the main-file for the Clock SSD STM8S105 project.
+  ------------------------------------------------------------------
+  This is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+ 
+  This software is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+ 
+  You should have received a copy of the GNU General Public License
+  along with this software.  If not, see <http://www.gnu.org/licenses/>.
+  ================================================================== */ 
 #include "main.h"
 #include "delay.h"
 #include "scheduler.h"
@@ -10,48 +29,47 @@ extern uint32_t t2_millis;         // Updated in TMR2 interrupt
 
 char     rs232_inbuf[UART_BUFLEN]; // buffer for RS232 commands
 uint8_t  rs232_ptr     = 0;        // index in RS232 buffer
-char     ssd_clk_ver[] = "Clock SSD S105 v0.45\n";
-// Bit-order: 0abcdefg. Digits: 0123456789 -bE°CPv
-uint8_t  ssd[18] = {0x7E,0x30,0x6D,0x79,0x33,0x5B,0x5F,0x70,0x7F,0x7B,0x00,0x01,0x1F,0x4F,0x63,0x4E,0x67,0x3E};
+char     ssd_clk_ver[] = "Clock SSD S105 v0.46\n";
+// Bit-order: 0abcdefg. Digits: 0123456789 -bE°CPvt
+uint8_t  ssd[19] = {0x7E,0x30,0x6D,0x79,0x33,0x5B,0x5F,0x70,0x7F,0x7B,
+                    0x00,0x01,0x1F,0x4F,0x63,0x4E,0x67,0x3E,0x0F};
 
 uint8_t led_r[NR_LEDS];           // Array with 8-bit red colour for all WS2812
 uint8_t led_g[NR_LEDS];           // Array with 8-bit green colour for all WS2812
 uint8_t led_b[NR_LEDS];           // Array with 8-bit blue colour for all WS2812
 bool    enable_test_pattern = false; // true = enable WS2812 test-pattern
-uint8_t show_date_IR        = 0;  // Show normal time or date and year
-uint8_t set_time_IR = IR_NO_TIME; // Show normal time or date and year
+uint8_t show_date_IR = IR_SHOW_TIME; // What to display on the 7-segment displays
+uint8_t set_time_IR  = IR_NO_TIME;   // Show normal time or blanking begin/end time
 bool    set_color_IR = false;     // true = set color intensity via IR
-uint8_t watchdog_test       = 0;  // 1 = watchdog test modus
+uint8_t watchdog_test = 0;        // 1 = watchdog test modus
 uint8_t led_intensity_r;          // Intensity of WS2812 Red LEDs [1..39]
 uint8_t led_intensity_g;          // Intensity of WS2812 Green LEDs [1..39]
 uint8_t led_intensity_b;          // Intensity of WS2812 Blue LEDs [1..39]
 bool    dst_active  = false;      // true = Daylight Saving Time active
 Time    dt;                       // Struct with time and date values, updated every sec.
-bool    real_binary = false;
-bool    powerup     = true;
-bool    set_col_white = false;   // true = esp8266 time update was successful
+bool    powerup         = true;
+bool    set_col_white   = false; // true = esp8266 time update was successful
 bool    blanking_invert = false; // Invert blanking-active IR-command
 bool    enable_test_IR  = false; // Enable Test-pattern IR-command
 bool    last_esp8266    = false; // true = last esp8266 command was successful
-uint8_t esp8266_std     = ESP8266_INIT; // update time from ESP8266 every 18 hours
-uint16_t esp8266_tmr    = 0;            // timer for updating ESP8266
+uint8_t  esp8266_std    = ESP8266_INIT; // update time from ESP8266 every 18 hours
+uint16_t esp8266_tmr    = 0;     // timer for updating ESP8266
 
-uint8_t blank_begin_h  = 23;
-uint8_t blank_begin_m  = 30;
-uint8_t blank_end_h    =  8;
-uint8_t blank_end_m    = 30;
-uint8_t time_arr[6];          // Array for changing time or intensity with IR
-uint8_t time_arr_idx;         // Index into time_arr[]
+uint8_t blank_begin_h  = 23;     // Blanking begin-time in hours
+uint8_t blank_begin_m  = 30;     // Blanking begin-time in minutes
+uint8_t blank_end_h    =  8;     // Blanking end-time in hours
+uint8_t blank_end_m    = 30;     // Blanking end-time in hours
+uint8_t time_arr[6];             // Array for changing time or intensity with IR
+uint8_t time_arr_idx;            // Index into time_arr[]
 
-uint8_t  tmr3_std = STATE_IDLE;
-uint16_t rawbuf[100]; // buffer with clock-ticks
-uint8_t  rawlen     = 0;
-uint16_t prev_ticks = 0;
-uint32_t ir_result  = 0;
-bool     ir_cont    = false;
-bool     ir_rdy     = false;
-uint8_t  ir_cmd_std = IR_CMD_IDLE;
-uint8_t  ir_cmd_tmr = 0;
+uint8_t  tmr3_std = STATE_IDLE;  // FSM for reading IR codes
+uint16_t rawbuf[100];            // buffer with clock-ticks from IR-codes
+uint8_t  rawlen     = 0;         // number of bits read from IR
+uint16_t prev_ticks = 0;         // previous value of ticks, used for bit-length calc.
+uint32_t ir_result  = 0;         // 32 bit raw bit-code from IR is stored here 
+bool     ir_rdy     = false;     // flag for ir_task() that new IR code is received
+uint8_t  ir_cmd_std = IR_CMD_IDLE; // FSM state in handle_ir_command()
+uint8_t  ir_cmd_tmr = 0;         // No-action timer for handle_ir_command()
 
 //----------------------------------------------------------------------------
 // These values are stored directly into EEPROM
@@ -274,33 +292,33 @@ uint8_t ir_key(void)
   ---------------------------------------------------------------------------*/
 void check_possible_digit(uint8_t digit)
 {
-    if (digit > 9) return; // only valid digits allowed
+    if (digit > DIG_9) return; // only valid digits allowed
     
     switch (time_arr_idx)
     {
         case 0: // MSB of hours
-            if (digit < 3) 
+            if (digit < DIG_3) 
             {   // only 0, 1 or 2 allowed
                 time_arr[0]  = digit;
             } // else
             break;
         case 1: // LSB of hours
-            if ((time_arr[0] == 2) && (digit < 4))
+            if ((time_arr[0] == DIG_2) && (digit < DIG_4))
             {   // only 20, 21, 22 and 23 allowed
                 time_arr[1]  = digit;
             } // if
-            else if (time_arr[0] < 2)
+            else if (time_arr[0] < DIG_2)
             {   // time_arr[0] == 0 || time_arr[0] == 1
                 time_arr[1]  = digit;
             } // else    
             break;
         case 2: // MSB of minutes
-            if (digit < 6) 
+            if (digit < DIG_6) 
             {   // only 0..5 allowed
                 time_arr[2]  = digit;
             } // else
             break;
-        default: // time_arr_idx == 3
+        default: // time_arr_idx == 3, LSB of minutes
             time_arr[3]  = digit;
             break;
     } // switch
@@ -317,13 +335,13 @@ void check_possible_digit(uint8_t digit)
   ---------------------------------------------------------------------------*/
 void check_possible_col_digit(uint8_t digit)
 {
-    if (digit < 10)
+    if (digit <= DIG_9)
     {   // only valid digits allowed
         if (!(time_arr_idx & 0x01))
         {   // even number, meaning MSB of color-intensity
-            if (digit < 4) time_arr[time_arr_idx] = digit; // store it
+            if (digit < DIG_4) time_arr[time_arr_idx] = digit; // store it
         } // if
-        else if ((digit > 0) || (time_arr[time_arr_idx-1] > 0))
+        else if ((digit > DIG_0) || (time_arr[time_arr_idx-1] > DIG_0))
         {   // odd number, any digit allowed, except 00 number
             time_arr[time_arr_idx] = digit;
         } // else
@@ -340,7 +358,7 @@ void handle_ir_command(uint8_t key)
 {
     static uint16_t tmr_xsec; // seconds timer
     uint8_t  x;
-    uint16_t temp;
+    uint16_t temp,t2;
     
     if (key == IR_NONE)
     {   // increment no-action timer
@@ -421,13 +439,13 @@ void handle_ir_command(uint8_t key)
             } // if
             else
             {   // no time-out yet
-                time_arr[0] = 10; // space
-                time_arr[1] = 17; // v
+                time_arr[0]  = DIG_SPACE; // space
+                time_arr[1]  = DIG_V;     // V
                 x = strlen(ssd_clk_ver);
-                time_arr[2] = (uint8_t)(ssd_clk_ver[x-5] - '0');
-                time_arr[3] = (uint8_t)(ssd_clk_ver[x-3] - '0');
-                time_arr[4] = (uint8_t)(ssd_clk_ver[x-2] - '0');
-                time_arr[5] = 10; // space
+                time_arr[2]  = (uint8_t)(ssd_clk_ver[x-5] - '0');
+                time_arr[3]  = (uint8_t)(ssd_clk_ver[x-3] - '0');
+                time_arr[4]  = (uint8_t)(ssd_clk_ver[x-2] - '0');
+                time_arr[5]  = DIG_SPACE; // space
                 show_date_IR = IR_SHOW_VER;
             } // else
             break;
@@ -440,12 +458,14 @@ void handle_ir_command(uint8_t key)
             } // if
             else
             {   // no time-out yet
-             time_arr[0] = 13; // E
-             time_arr[1] = 5;  // S
-             time_arr[2] = 16; // P
-             time_arr[3] = 0;  // 0
-             time_arr[4] = 1;  // 1
-             time_arr[5] = (last_esp8266) ? 1 : 0;
+             temp = ESP8266_MINUTES - (esp8266_tmr / 60); // minutes left until next update
+             t2   = encode_to_bcd4(temp);
+             time_arr[0]  = DIG_t; // t
+             time_arr[1]  = (uint8_t)((t2 >> 8) & 0x0F); // MSB of minutes left
+             time_arr[2]  = (uint8_t)((t2 >> 4) & 0x0F); // middle byte of minutes left
+             time_arr[3]  = (uint8_t)(t2 & 0x0F);        // LSB of minutes left 
+             time_arr[4]  = DIG_SPACE; // leave empty
+             time_arr[5]  = (last_esp8266) ? DIG_1 : DIG_0;
              show_date_IR = IR_SHOW_ESP_STAT;
             } // else
             break;
@@ -463,30 +483,32 @@ void handle_ir_command(uint8_t key)
             {   // no time-out yet
                 temp = ds3231_gettemp();
                 x = encode_to_bcd2(temp >> 2); // overflows if temp > 255 Celsius
-                time_arr[0] = (x >> 4) & 0x0F;
-                time_arr[1] = x & 0x0F;
+                time_arr[0] = (x >> 4) & 0x0F; // MSB of temp integer
+                time_arr[1] = x & 0x0F;        // LSB of temp integer
                 switch (temp & 0x03)
-                {
-                    case 0 : time_arr[2] = time_arr[3] = 0;    break; // .00 Celsius
-                    case 1 : time_arr[2] = 2; time_arr[3] = 5; break; // .25 Celsius
-                    case 2 : time_arr[2] = 5; time_arr[3] = 0; break; // .50 Celsius
-                    case 3 : time_arr[2] = 7; time_arr[3] = 5; break; // .75 Celsius
+                {   // MSB and LSB of decimal fraction of temperature
+                    case 0 : time_arr[2] = time_arr[3] = DIG_0;        break; // .00 Celsius
+                    case 1 : time_arr[2] = DIG_2; time_arr[3] = DIG_5; break; // .25 Celsius
+                    case 2 : time_arr[2] = DIG_5; time_arr[3] = DIG_0; break; // .50 Celsius
+                    case 3 : time_arr[2] = DIG_7; time_arr[3] = DIG_5; break; // .75 Celsius
                     default: break;
                 } // switch
+                time_arr[4] = DIG_DEGR; // degree symbol
+                time_arr[5] = DIG_C;    // C symbol
                 show_date_IR = IR_SHOW_TEMP;
             } // else
             break;
             
         case IR_CMD_5: // Set intensity of colors
             x = encode_to_bcd2(led_intensity_b);
-            time_arr[0]  = (x >> 4) & 0x0F;
-            time_arr[1]  = x & 0x0F;
+            time_arr[0]  = (x >> 4) & 0x0F;   // MSB of blue intensity
+            time_arr[1]  = x & 0x0F;          // LSB of blue intensity
             x = encode_to_bcd2(led_intensity_g);
-            time_arr[2]  = (x >> 4) & 0x0F;
-            time_arr[3]  = x & 0x0F;
+            time_arr[2]  = (x >> 4) & 0x0F;   // MSB of green intensity
+            time_arr[3]  = x & 0x0F;          // LSB of green intensity
             x = encode_to_bcd2(led_intensity_r);
-            time_arr[4]  = (x >> 4) & 0x0F;
-            time_arr[5]  = x & 0x0F;
+            time_arr[4]  = (x >> 4) & 0x0F;   // MSB of red intensity
+            time_arr[5]  = x & 0x0F;          // LSB of green intensity
             time_arr_idx = 0;
             set_color_IR = true;              // indicate change color intensity
             ir_cmd_std   = IR_CMD_COL_CURSOR; // use cursor keys to change time
@@ -512,26 +534,30 @@ void handle_ir_command(uint8_t key)
             
         case IR_CMD_8: // Set Blanking Begin
             x = encode_to_bcd2(blank_begin_h);
-            time_arr[0]  = (x >> 4) & 0x0F;
-            time_arr[1]  = x & 0x0F;
+            time_arr[0]  = DIG_b;           // b
+            time_arr[1]  = DIG_b;           // b
+            time_arr[2]  = (x >> 4) & 0x0F; // MSB of hours blanking-begin
+            time_arr[3]  = x & 0x0F;        // LSB of hours blanking-begin
             x = encode_to_bcd2(blank_begin_m);
-            time_arr[2]  = (x >> 4) & 0x0F;
-            time_arr[3]  = x & 0x0F;
-            time_arr_idx = 0;
-            set_time_IR  = IR_BB_TIME; // indicate change blanking-begin time
-            ir_cmd_std   = IR_CMD_CURSOR; // use cursor keys to change time
+            time_arr[4]  = (x >> 4) & 0x0F; // MSB of minutes blanking-begin
+            time_arr[5]  = x & 0x0F;        // LSB of minutes blanking-begin 
+            time_arr_idx = 2;               // start at MSB of hours
+            set_time_IR  = IR_BB_TIME;      // indicate change blanking-begin time
+            ir_cmd_std   = IR_CMD_CURSOR;   // use cursor keys to change time
             break;
             
         case IR_CMD_9: // Set Blanking End
             x = encode_to_bcd2(blank_end_h);
-            time_arr[0]  = (x >> 4) & 0x0F;
-            time_arr[1]  = x & 0x0F;
+            time_arr[0]  = DIG_b;           // b
+            time_arr[1]  = DIG_E;           // E
+            time_arr[2]  = (x >> 4) & 0x0F; // MSB of hours blanking-end
+            time_arr[3]  = x & 0x0F;        // LSB of hours blanking-end
             x = encode_to_bcd2(blank_end_m);
-            time_arr[2]  = (x >> 4) & 0x0F;
-            time_arr[3]  = x & 0x0F;
-            time_arr_idx = 0;
-            set_time_IR  = IR_BE_TIME; // indicate change blanking-end time
-            ir_cmd_std   = IR_CMD_CURSOR; // use cursor keys to change time
+            time_arr[4]  = (x >> 4) & 0x0F; // MSB of minutes blanking-end
+            time_arr[5]  = x & 0x0F;        // LSB of minutes blanking-end
+            time_arr_idx = 2;               // start at MSB of hours
+            set_time_IR  = IR_BE_TIME;      // indicate change blanking-end time
+            ir_cmd_std   = IR_CMD_CURSOR;   // use cursor keys to change time
             break;
 
         case IR_CMD_HASH: // Show date & year for 8 seconds
@@ -545,7 +571,7 @@ void handle_ir_command(uint8_t key)
             else show_date_IR = IR_SHOW_YEAR;
             break;
             
-        case IR_CMD_CURSOR:  // use cursor keys to change time
+        case IR_CMD_CURSOR:  // use cursor keys to change time for blanking-begin & -end
             x = time_arr[time_arr_idx]; // get current digit
             switch (key)
             {
@@ -560,20 +586,20 @@ void handle_ir_command(uint8_t key)
                     check_possible_digit(--x); 
                     break;
                 case IR_LEFT: 
-                    if (time_arr_idx == 0) 
-                         time_arr_idx = 3;
+                    if (time_arr_idx == 2) 
+                         time_arr_idx = 5;
                     else time_arr_idx--;
                     break;
                 case IR_RIGHT: 
-                    if (time_arr_idx == 3) 
-                         time_arr_idx = 0;
+                    if (time_arr_idx == 5) 
+                         time_arr_idx = 2;
                     else time_arr_idx++;
                      break;
                 case IR_OK: 
                     if (set_time_IR == IR_BB_TIME)
                     {  // Blanking-time Begin
-                       blank_begin_h = 10 * time_arr[0] + time_arr[1];
-                       blank_begin_m = 10 * time_arr[2] + time_arr[3];
+                       blank_begin_h = 10 * time_arr[2] + time_arr[3];
+                       blank_begin_m = 10 * time_arr[4] + time_arr[5];
                        eeprom_write_config(EEP_ADDR_BBEGIN_H,blank_begin_h);
                        eeprom_write_config(EEP_ADDR_BBEGIN_M,blank_begin_m);
                        set_time_IR = IR_NO_TIME;
@@ -581,8 +607,8 @@ void handle_ir_command(uint8_t key)
                     } // if
                     else if (set_time_IR == IR_BE_TIME)
                     {  // Blanking-time End
-                       blank_end_h = 10 * time_arr[0] + time_arr[1];
-                       blank_end_m = 10 * time_arr[2] + time_arr[3];
+                       blank_end_h = 10 * time_arr[2] + time_arr[3];
+                       blank_end_m = 10 * time_arr[4] + time_arr[5];
                        eeprom_write_config(EEP_ADDR_BEND_H,blank_end_h);
                        eeprom_write_config(EEP_ADDR_BEND_M,blank_end_m);
                        set_time_IR = IR_NO_TIME;
@@ -640,7 +666,7 @@ void handle_ir_command(uint8_t key)
 /*-----------------------------------------------------------------------------
   Purpose  : This is the 100 msec. task from the task-scheduler and it controls
              the IR remote controller. If the PORTC IRQ handler signals a new
-             IR signal, it set ir_rdy high. This function then decodes the
+             IR signal, it sets ir_rdy high. This function then decodes the
              IR signal into a key pressed and resets the PORTC IRQ handler for
              reception of a new IR signal.
   Variables: -
@@ -648,25 +674,13 @@ void handle_ir_command(uint8_t key)
   ---------------------------------------------------------------------------*/
 void ir_task(void)
 {
-//    char s[25];
     uint8_t i, key = IR_NONE;
     
     if (ir_rdy)
     {
-//       sprintf(s,"[%d]",rawlen);
-//       uart_printf(s);
-//       for (i = 0; i < rawlen; i++)
-//       {
-//           sprintf(s,"%u,",rawbuf[i]);
-//           uart_printf(s);
-//       } // for i
-//       uart_putc('\n');
        if (ir_decode_nec()) 
        {
-//           sprintf(s,"result=0x%lx\n",ir_result);
-//           uart_printf(s);
            key = ir_key(); // find the key pressed
-//           handle_ir_command(key);
        } // if
        for (i = 0; i < 99; i++) rawbuf[i] = 0; // clear buffer
        tmr3_std = STATE_IDLE; // reset state for next IR code
@@ -699,20 +713,6 @@ __interrupt void TIM2_UPD_OVF_IRQHandler(void)
     t2_millis++;      // update milliseconds timer
     TIM2_SR1_UIF = 0; // Reset the interrupt otherwise it will fire again straight away.
 } // TIM2_UPD_OVF_IRQHandler()
-
-/*-----------------------------------------------------------------------------
-  Purpose  : This is interrupt routine 15 for the Timer 3 Overflow handler.
-             It is currently not used.
-  Variables: -
-  Returns  : -
-  ---------------------------------------------------------------------------*/
-#pragma vector = TIM3_OVR_UIF_vector
-__interrupt void TIM3_UPD_OVF_IRQHandler(void)
-{
-    //IRQ_LEDb = !IRQ_LEDb;
-    //ir_isr();
-    TIM3_SR1_UIF = 0; // Reset the interrupt otherwise it will fire again straight away.
-} // TIM3_UPD_OVF_IRQHandler()
 
 /*-----------------------------------------------------------------------------
   Purpose  : This routine initialises the system clock to run at 16 MHz.
@@ -921,7 +921,7 @@ uint8_t encode_to_bcd2(uint8_t x)
 } // encode_to_bcd2()
 
 /*------------------------------------------------------------------------
-  Purpose  : Encode a byte into 4 BCD numbers.
+  Purpose  : Encode a 16-bit integer into 4 BCD numbers.
   Variables: x: the integer to encode
   Returns  : the four encoded BCD numbers
   ------------------------------------------------------------------------*/
@@ -949,11 +949,13 @@ uint16_t encode_to_bcd4(uint16_t x)
 } // encode_to_bcd4()
 
 /*-----------------------------------------------------------------------------
-  Purpose  : This routine 
+  Purpose  : This function fills one color of a 7-segment display with a digit 
+             and with an intensity. The decimal-point can also be set.
   Variables: 
              board_nr: [0,NR_BOARDS-1]
              *p      : pointer to led_r[], led_g[] or led_b[] array
              digit   : digit to write into array 
+             dp      : true = enable decimal-point 
   Returns  : -
   ---------------------------------------------------------------------------*/
 void fill_led_color(uint8_t *p, uint8_t board_nr, uint8_t digit, uint8_t intensity, bool dp)
@@ -974,7 +976,8 @@ void fill_led_color(uint8_t *p, uint8_t board_nr, uint8_t digit, uint8_t intensi
 } // fill_led_color()
 
 /*-----------------------------------------------------------------------------
-  Purpose  : This routine 
+  Purpose  : This routine fills one 7-segment display with a digit in a 
+             particular color and intensity. The decimal-point can also be set.
   Variables: board_nr: [0,NR_BOARDS-1]
              color   : set of defined colors
              digit   : digit to write into array 
@@ -1028,7 +1031,6 @@ void pattern_task(void)
     uint16_t y;
     bool     dpm = false;
     bool     dpl = false;
-    static uint8_t blink_tmr = 0;
     static bool    blink     = false;
     static uint8_t col_white_tmr = 0;
     
@@ -1042,8 +1044,9 @@ void pattern_task(void)
     } // if
     else
     {
-        if (blanking_active() || powerup) 
-        {
+        if ((blanking_active() || powerup) && (show_date_IR == IR_SHOW_TIME) && 
+            (set_time_IR == IR_NO_TIME) && !set_color_IR) 
+        {  // blanking leds only on power-up and no IR-commands active
             clear_all_leds();
             return;
         } // if
@@ -1051,11 +1054,7 @@ void pattern_task(void)
         if (dt.sec == 0) check_and_set_summertime(); 
         
         clear_all_leds(); // Start with clearing all leds
-        if (++blink_tmr >= 1) 
-        {   // 100 msec.
-            blink_tmr = 0;
-            blink     = !blink;
-        } // if
+        blink = !blink;   // toggle blinking
 
         //-------------------------------------
         // Fill SSD 0 and 1 (left SSDs)
@@ -1063,49 +1062,44 @@ void pattern_task(void)
         if (show_date_IR == IR_SHOW_DATE)
         {   // show day and month
             x  = encode_to_bcd2(dt.day);
-            xm = (x >> 4) & 0x0F; // msb month
-            xl = x & 0x0F;        // lsb month
+            xm = (x >> 4) & 0x0F; // msb day
+            xl = x & 0x0F;        // lsb day
             cl = cm = COL_YELLOW;
         } // else if
         else if (show_date_IR == IR_SHOW_YEAR)
         {   // show year
             y  = encode_to_bcd4(dt.year);
+            xm = DIG_SPACE;                   // SSD off
             xl = (uint8_t)((y >> 12) & 0x0F); // msb year
-            xm = 10;  // SSD off
             cl = cm = COL_YELLOW;
         } // else
         else if (show_date_IR == IR_SHOW_TEMP)
         {   // show temperature of DS3231
-            xm = time_arr[0]; // msb of blue color intensity
-            xl = time_arr[1]; // lsb of blue color intensity
-            cl = cm = COL_CYAN;
+            xm  = time_arr[0]; // msb of temperature decimal part
+            xl  = time_arr[1]; // lsb of temperature decimal part
+            cl  = cm = COL_CYAN;
             dpl = true; // set decimal point
         } // else if
         else if (show_date_IR == IR_SHOW_ESP_STAT)
         {   // show status of last ESP8266 response
-            xm = time_arr[0]; // esp01 msb
-            xl = time_arr[1]; // esp01 lsb
+            xm = time_arr[0]; // esp01 text
+            xl = time_arr[1]; // esp01 text
             cl = cm = COL_YELLOW;
         } // else if
         else if (show_date_IR == IR_SHOW_VER)
         {   // show version info
-            xm = time_arr[0]; // space
-            xl = time_arr[1]; // v
+            xm = time_arr[0]; // V0.xx text
+            xl = time_arr[1]; // V0.xx text
             cl = cm = COL_YELLOW;
         } // else if
-        else if (set_time_IR == IR_BB_TIME)
-        {   // show blanking-begin time
-            xl = xm = 12; // bb
-            cl = cm = COL_YELLOW;
-        } // else if
-        else if (set_time_IR == IR_BE_TIME)
-        {   // show blanking-end time
-            xm = 12; // b
-            xl = 13; // E
+        else if (set_time_IR != IR_NO_TIME)
+        {   // show blanking-begin or -end time
+            xm = time_arr[0]; // bb/bE text
+            xl = time_arr[1]; // bb/bE text
             cl = cm = COL_YELLOW;
         } // else if
         else if (set_color_IR)
-        {
+        {   // change color-intensity
             xm = time_arr[0]; // msb of blue color intensity
             xl = time_arr[1]; // lsb of blue color intensity
             cl = cm = COL_BLUE;
@@ -1133,40 +1127,40 @@ void pattern_task(void)
         if (show_date_IR == IR_SHOW_DATE)
         {   // show day and month
             x  = encode_to_bcd2(dt.mon);
+            xm = DIG_MINUS;       // - (seg G)
             xl = (x >> 4) & 0x0F; // msb month
-            xm = 11; // - (seg G)
             cl = cm = COL_YELLOW;
         } // else if
         else if (show_date_IR == IR_SHOW_YEAR)
         {   // show year
-            xl = (uint8_t)((y >> 4) & 0x0F); // year, 2nd digit from right
             xm = (uint8_t)((y >> 8) & 0x0F); // year, 3rd digit from right
+            xl = (uint8_t)((y >> 4) & 0x0F); // year, 2nd digit from right
             cl = cm = COL_YELLOW;
         } // else if
         else if (show_date_IR == IR_SHOW_TEMP)
         {   // show temperature of DS3231
-            xm = time_arr[2]; // msb of temp. fraction
-            xl = time_arr[3]; // lsb of temp. fraction
-            cl = cm = COL_CYAN;
+            xm  = time_arr[2]; // msb of temperature fraction
+            xl  = time_arr[3]; // lsb of temperature fraction
+            cl  = cm = COL_CYAN;
             dpl = dpm = false;
         } // else if
         else if (show_date_IR == IR_SHOW_ESP_STAT)
         {   // show status of last ESP8266 response
-            xm = time_arr[2]; // ESP01 msb
-            xl = time_arr[3]; // ESP01 lsb
+            xm = time_arr[2]; // ESP01 text
+            xl = time_arr[3]; // ESP01 text
             cl = cm = COL_YELLOW;
         } // else if
         else if (show_date_IR == IR_SHOW_VER)
         {   // show version info
-            xm = time_arr[2]; // version info
-            xl = time_arr[3]; // version info
-            cl = cm = COL_MAGENTA;
+            xm  = time_arr[2]; // version info
+            xl  = time_arr[3]; // version info
+            cl  = cm = COL_MAGENTA;
             dpm = true;
         } // else if
-        else if ((set_time_IR == IR_BB_TIME) || (set_time_IR == IR_BE_TIME))
-        {   // show blanking-begin or end time
-            xm = time_arr[0]; // msb of hours
-            xl = time_arr[1]; // lsb of hours
+        else if (set_time_IR != IR_NO_TIME)
+        {   // show blanking-begin or -end time
+            xm = time_arr[2]; // msb of hours
+            xl = time_arr[3]; // lsb of hours
             cl = cm = COL_MAGENTA; // default color
             if (blink)
             {   // blinking color
@@ -1175,10 +1169,10 @@ void pattern_task(void)
             } // if
         } // else if
         else if (set_color_IR)
-        {
-            xm = time_arr[2]; // msb of green color intensity
-            xl = time_arr[3]; // lsb of green color intensity
-            cl = cm = COL_GREEN;
+        {   // change color-intensity
+            xm  = time_arr[2]; // msb of green color intensity
+            xl  = time_arr[3]; // lsb of green color intensity
+            cl  = cm  = COL_GREEN;
             dpl = dpm = false;
             if (blink)
             {  // blink decimal points if digits are active 
@@ -1203,43 +1197,42 @@ void pattern_task(void)
         //-------------------------------------
         if (show_date_IR == IR_SHOW_DATE)
         {   // show day and month
-            xl = 10; // SSD off
             xm = encode_to_bcd2(dt.mon) & 0x0F; // lsb month
+            xl = DIG_SPACE;                     // SSD off
             cl = cm = COL_YELLOW;
         } // else if
         else if (show_date_IR == IR_SHOW_YEAR)
         {   // show year
-            xl = 10; // SSD off
             xm = (uint8_t)(y & 0x000F); // lsb year
+            xl = DIG_SPACE;             // SSD off
             cl = cm = COL_YELLOW;
         } // else if
         else if (show_date_IR == IR_SHOW_TEMP)
         {   // show temperature of DS3231
-            xm = 14; // degree symbol
-            xl = 15; // C
+            xm = time_arr[4]; // degree symbol
+            xl = time_arr[5]; // C symbol
             cl = cm = COL_YELLOW;
         } // else if
         else if (show_date_IR == IR_SHOW_ESP_STAT)
         {   // show status of last ESP8266 response
-            xm = time_arr[4]; // ESP01 msb
-            xl = time_arr[5]; // ESP01 lsb
-            cm = COL_YELLOW;
-            dpm = true;       // set decimal-point
+            xm  = time_arr[4]; // ESP01 msb
+            xl  = time_arr[5]; // ESP01 lsb
+            cm  = COL_YELLOW;
             if (xl == 1) 
                  cl = COL_GREEN; // last response ok
             else cl = COL_RED;   // last response not ok
         } // else if
         else if (show_date_IR == IR_SHOW_VER)
         {   // show version info
-            xm = time_arr[4]; // version info
-            xl = time_arr[5]; // version info
-            cl = cm = COL_MAGENTA;
+            xm  = time_arr[4]; // version info
+            xl  = time_arr[5]; // version info
+            cl  = cm  = COL_MAGENTA;
             dpm = dpl = false;
         } // else if
-        else if ((set_time_IR == IR_BB_TIME) || (set_time_IR == IR_BE_TIME))
+        else if (set_time_IR != IR_NO_TIME)
         {   // show blanking-begin or end time
-            xm = time_arr[2]; // msb of minutes
-            xl = time_arr[3]; // lsb of minutes
+            xm = time_arr[4]; // msb of minutes
+            xl = time_arr[5]; // lsb of minutes
             cl = cm = COL_MAGENTA; // default color
             if (blink)
             {   // blinking color
@@ -1249,9 +1242,9 @@ void pattern_task(void)
         } // else if
         else if (set_color_IR)
         {   // set color-intensity
-            xm = time_arr[4]; // msb of red color intensity
-            xl = time_arr[5]; // lsb of red color intensity
-            cl = cm = COL_RED;
+            xm  = time_arr[4]; // msb of red color intensity
+            xl  = time_arr[5]; // lsb of red color intensity
+            cl  = cm  = COL_RED;
             dpl = dpm = false;
             if (blink)
             {  // blink decimal points if digits are active 
@@ -1398,27 +1391,25 @@ void check_and_set_summertime(void)
 /*-----------------------------------------------------------------------------
   Purpose  : This routine reads the date and time info from the DS3231 RTC and
              stores this info into the global variables seconds, minutes and
-             hours. It is called every second
-  Variables: 
-    seconds: global variable [0..59]
-    minutes: global variable [0..59]
-      hours: global variable [0..23]
+             hours. It is called every second.
+  Variables: dt: global struct that stores time & date variables
   Returns  : -
   ---------------------------------------------------------------------------*/
 void clock_task(void)
 {
-    ds3231_gettime(&dt);
-    powerup = false;
+    ds3231_gettime(&dt); // Get time from DS3231 RTC
+    powerup = false;     // Time received, so reset power-up flag
     switch (esp8266_std)
     {
     case ESP8266_INIT:
-        if (++esp8266_tmr >= 65530) // approx. 18 hours and 12 minutes
+        if (++esp8266_tmr >= ESP8266_SECONDS) // 12 hours * 60 min. * 60 sec.
            esp8266_std = ESP8266_UPDATE;
         break;
     case ESP8266_UPDATE:
-        uart_printf("e0\n"); // update time from ESP8266
-        esp8266_tmr = 0;
-        esp8266_std = ESP8266_INIT;
+        last_esp8266 = false; // reset status
+        esp8266_tmr  = 0;
+        esp8266_std  = ESP8266_INIT;
+        uart_printf("e0\n");  // update time from ESP8266
         break;
     default: 
         esp8266_tmr = 0;
@@ -1657,7 +1648,7 @@ void execute_single_command(char *s)
                          default:
                              break;
                      } // switch
-                     sprintf(s2,"%d\n",num);
+                     sprintf(s2,"%d\n",temp);
                      uart_printf(s2);
                   } // if
                   else uart_printf("nr error\n");

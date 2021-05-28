@@ -1,3 +1,5 @@
+#ifndef _STM8_EEP_H
+#define _STM8_EEP_H
 /*==================================================================
   File Name    : eep.h
   Author       : Emile
@@ -16,11 +18,7 @@
  
   You should have received a copy of the GNU General Public License
   along with EEP.  If not, see <http://www.gnu.org/licenses/>.
-  ==================================================================
-*/ 
-#ifndef _STM8_EEP_H
-#define _STM8_EEP_H
-
+  ==================================================================*/ 
 #include <stdint.h>
 
 // EEPROM base address within STM8 uC

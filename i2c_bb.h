@@ -1,3 +1,5 @@
+#ifndef _I2C_BB_H
+#define _I2C_BB_H
 /*==================================================================
    File Name    : i2c_bb.h
    Author       : Emile
@@ -19,9 +21,6 @@
   You should have received a copy of the GNU General Public License
   along with this software.  If not, see <http://www.gnu.org/licenses/>.
   ================================================================== */ 
-#ifndef _I2C_BB_H
-#define _I2C_BB_H
-
 #include <stdbool.h>
 #include <intrinsics.h> 
 #include <stdint.h>

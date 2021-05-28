@@ -16,8 +16,7 @@
  
   You should have received a copy of the GNU General Public License
   along with CHESS_STM8S105. If not, see <http://www.gnu.org/licenses/>.
-  ==================================================================
-*/ 
+  ==================================================================*/ 
 #include "i2c_bb.h"
 
 /*-----------------------------------------------------------------------------

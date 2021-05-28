@@ -9,7 +9,9 @@
 
 # IR-codes and commands
 - 1 = Show version number of current firmware
-- 2 = Show status of last ESP8266 update. Time is retrieved from ESP8266 approx. every 18 hours
+- 2 = Show status of last ESP8266 update. Time is retrieved from ESP8266 every 12 hours. 
+      Display shows "txxx y" with xxx the remaining time in minutes until a next update to the ESP8266 NTP server, 
+	  y is the status from the last update: 0 (red) for error and 1 (green) for a successful update.
 - 3 = Get Date and Time from ESP8266 NTP Server and update DS3231 RTC. Displays shows time in white for a second if successful.
 - 4 = Show temperature for 5 seconds.
 - 5 = Set intensity of colors (01 - 39). Use Up, Down, Ok, 0-9 to set a digit.
