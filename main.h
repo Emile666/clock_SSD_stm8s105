@@ -311,6 +311,16 @@
 #define ESP8266_SECONDS ((uint16_t)ESP8266_HOURS * 3600)
 
 //-----------------------------------------------------------------------
+// Definitions for numbering of seven-segment displays
+//-----------------------------------------------------------------------
+#define POS0    (0) /* Left-most SSD, typically displays MSB hours */
+#define POS1    (1) /* Typically displays LSB hours */
+#define POS2    (2) /* Typically displays MSB minutes */
+#define POS3    (3) /* Typically displays LSB minutes */
+#define POS4    (4) /* Typically displays MSB seconds */
+#define POS5    (5) /* Right-most SSD, typically displays LSB seconds */
+                         
+//-----------------------------------------------------------------------
 // Function prototypes
 //-----------------------------------------------------------------------
 bool     check_ticks(uint16_t val, uint16_t low, uint16_t high);

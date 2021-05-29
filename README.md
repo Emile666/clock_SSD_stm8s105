@@ -24,7 +24,7 @@
 # Development Environment
 IAR development environment for STM8 
 
-#ESP8266 Firmware
+# ESP8266 Firmware
 - Arduino 1.8.15 IDE with board "Generic ESP8266 Module"
 - Connect GPIO_0 to GND for programming, to VCC for normal booting
 - Connect GPIO_2 to VCC, leave RESET open and CH_PD to VCC.
