@@ -305,6 +305,7 @@
 //-----------------------------------------------------------------------
 #define ESP8266_INIT    (0) /* Default state */
 #define ESP8266_UPDATE  (1) /* Update time from ESP8266 NTP Server */
+#define ESP8266_RETRY   (2) /* Retry getting a response from the ESP8266 */
 
 #define ESP8266_HOURS   (12) /* Time in hours between updates from ESP8266 */
 #define ESP8266_MINUTES (ESP8266_HOURS * 60)

@@ -29,7 +29,7 @@ extern uint32_t t2_millis;         // Updated in TMR2 interrupt
 
 char     rs232_inbuf[UART_BUFLEN]; // buffer for RS232 commands
 uint8_t  rs232_ptr     = 0;        // index in RS232 buffer
-char     ssd_clk_ver[] = "Clock SSD S105 v0.47\n";
+char     ssd_clk_ver[] = "Clock SSD S105 v0.48\n";
 // Bit-order: 0abcdefg. Digits: 0123456789 -bE°CPvt
 uint8_t  ssd[19] = {0x7E,0x30,0x6D,0x79,0x33,0x5B,0x5F,0x70,0x7F,0x7B,
                     0x00,0x01,0x1F,0x4F,0x63,0x4E,0x67,0x3E,0x0F};
@@ -53,7 +53,7 @@ bool    blanking_invert = false; // Invert blanking-active IR-command
 bool    enable_test_IR  = false; // Enable Test-pattern IR-command
 bool    last_esp8266    = false; // true = last esp8266 command was successful
 uint8_t  esp8266_std    = ESP8266_INIT; // update time from ESP8266 every 18 hours
-uint16_t esp8266_tmr    = 0;     // timer for updating ESP8266
+uint16_t esp8266_tmr    = ESP8266_SECONDS - 30; // ESP8266 timer, update 30 sec. after power-up
 
 uint8_t blank_begin_h  = 23;     // Blanking begin-time in hours
 uint8_t blank_begin_m  = 30;     // Blanking begin-time in minutes
@@ -102,17 +102,18 @@ __interrupt void PORTC_IRQHandler(void)
 {
     uint16_t diff_ticks;
     uint16_t ticks = tmr3_val(); // counts at f = 31.25 kHz, T = 32 usec.
-        
+    uint8_t  ir_rcvb = IR_RCVb;  // read IR-signal
+    
     if (ticks < prev_ticks)
          diff_ticks = ~prev_ticks + ticks;
     else diff_ticks = ticks  - prev_ticks;
-    if (IR_RCVb) // copy IR-signal to debug output
+    if (ir_rcvb) // copy IR-signal to debug output
          IRQ_LEDb = 1;
     else IRQ_LEDb = 0; 
     switch (tmr3_std)
     {
         case STATE_IDLE:
-            if (!IR_RCVb)
+            if (!ir_rcvb)
             {   // falling edge
                 rawbuf[0] = ticks;
                 rawlen    = 1;
@@ -120,7 +121,7 @@ __interrupt void PORTC_IRQHandler(void)
             } // if
             break;
         case STATE_MARK: // A mark is a 0 for the VS1838B
-            if (IR_RCVb) 
+            if (ir_rcvb) 
             {   // rising edge, end of mark
                 if (rawlen < 99)
                 {
@@ -135,7 +136,7 @@ __interrupt void PORTC_IRQHandler(void)
             } // if
             break;
         case STATE_SPACE:
-            if (!IR_RCVb) 
+            if (!ir_rcvb) 
             {   // falling edge, end of space
                 if (diff_ticks > 625) // 625 = 20 msec. min. gap between transmissions
                 {   // long space received, ready to process everything
@@ -1111,9 +1112,10 @@ void pattern_task(void)
         } // else if
         else
         {   // normal time mode (show_date_IR == IR_SHOW_TIME)
-            x  = encode_to_bcd2(dt.hour);
-            xm = (x >> 4) & 0x0F; // msb hours
-            xl = x & 0x0F;        // lsb hours
+            x   = encode_to_bcd2(dt.hour);
+            xm  = (x >> 4) & 0x0F; // msb hours
+            xl  = x & 0x0F;        // lsb hours
+            dpl = true;            // set dp between hours and minutes
             if (set_col_white)
                  cl = cm = COL_WHITE;
             else cl = cm = COL_BLUE;
@@ -1182,9 +1184,10 @@ void pattern_task(void)
         } // else if
         else
         {   // normal time mode (show_date_IR == IR_SHOW_TIME)
-            x  = encode_to_bcd2(dt.min);
-            xm = (x >> 4) & 0x0F; // msb minutes
-            xl = x & 0x0F;        // lsb minutes
+            x   = encode_to_bcd2(dt.min);
+            xm  = (x >> 4) & 0x0F; // msb minutes
+            xl  = x & 0x0F;        // lsb minutes
+            dpl = true;            // set dp between minutes and seconds
             if (set_col_white)
                  cl = cm = COL_WHITE;
             else cl = cm = COL_GREEN;
@@ -1254,9 +1257,10 @@ void pattern_task(void)
         } // else if
         else
         {   // normal time mode (show_date_IR == IR_SHOW_TIME)
-            x  = encode_to_bcd2(dt.sec);
-            xm = (x >> 4) & 0x0F; // msb seconds
-            xl = x & 0x0F;        // lsb seconds
+            x   = encode_to_bcd2(dt.sec);
+            xm  = (x >> 4) & 0x0F; // msb seconds
+            xl  = x & 0x0F;        // lsb seconds
+            dpl = dst_active;     // most-right dp on if DST-active
             if (set_col_white)
             {
                 cl = cm = COL_WHITE;
@@ -1397,19 +1401,41 @@ void check_and_set_summertime(void)
   ---------------------------------------------------------------------------*/
 void clock_task(void)
 {
+    static uint8_t retry_tmr;
+    static uint8_t retries = 0;
+    
     ds3231_gettime(&dt); // Get time from DS3231 RTC
     powerup = false;     // Time received, so reset power-up flag
     switch (esp8266_std)
     {
     case ESP8266_INIT:
         if (++esp8266_tmr >= ESP8266_SECONDS) // 12 hours * 60 min. * 60 sec.
-           esp8266_std = ESP8266_UPDATE;
+        {
+            last_esp8266 = false; // reset status
+            retries      = 0;     // init. number of retries
+            esp8266_std  = ESP8266_UPDATE;
+        } // if
         break;
     case ESP8266_UPDATE:
-        last_esp8266 = false; // reset status
-        esp8266_tmr  = 0;
-        esp8266_std  = ESP8266_INIT;
+        retry_tmr    = 0;     // init. retry timer
         uart_printf("e0\n");  // update time from ESP8266
+        esp8266_std  = ESP8266_RETRY;
+        break;
+    case ESP8266_RETRY:
+        if (last_esp8266 == true)
+        {   // valid e0 response back, set by command_interpreter()
+            esp8266_std  = ESP8266_INIT;
+        } // if
+        else if (++retries > 5)
+        {   // No response from esp8266 after 5 retries, stop trying
+            esp8266_std = ESP8266_INIT;
+            esp8266_tmr = 0; // reset timer here and try again in 12 hours
+        } // else if
+        else if (++retry_tmr >= 60)
+        {   // retry 1 minute later
+            retries++;
+            esp8266_std = ESP8266_UPDATE; // retry once more
+        } // else if
         break;
     default: 
         esp8266_tmr = 0;
@@ -1492,7 +1518,7 @@ void execute_single_command(char *s)
    uint8_t  num  = atoi(&s[1]); // convert number in command (until space is found)
    char     s2[40]; // Used for printing to RS232 port
    char     *s1;
-   uint8_t  d,m,h,sec;
+   uint8_t  d,mi,mo,h,sec;
    uint16_t i,y;
    int16_t  temp;
    const char sep[] = ":-.";
@@ -1506,25 +1532,25 @@ void execute_single_command(char *s)
 			    s1 = strtok(&s[3],sep);
                             d  = atoi(s1);
                             s1 = strtok(NULL ,sep);
-                            m  = atoi(s1);
+                            mo = atoi(s1);
                             s1 = strtok(NULL ,sep);
                             y  = atoi(s1);
                             uart_printf("Date: ");
-                            print_dow(ds3231_calc_dow(d,m,y));
-                            sprintf(s2," %d-%d-%d\n",d,m,y);
+                            print_dow(ds3231_calc_dow(d,mo,y));
+                            sprintf(s2," %d-%d-%d\n",d,mo,y);
                             uart_printf(s2);
-                            ds3231_setdate(d,m,y); // write to DS3231 IC
+                            ds3231_setdate(d,mo,y); // write to DS3231 IC
                             break;
                     case 1: // Set Time
                             s1      = strtok(&s[3],sep);
                             h       = atoi(s1);
                             s1      = strtok(NULL ,sep);
-                            m       = atoi(s1);
+                            mi      = atoi(s1);
                             s1      = strtok(NULL ,sep);
                             sec     = atoi(s1);
-                            sprintf(s2,"Time: %d:%d:%d\n",h,m,sec);
+                            sprintf(s2,"Time: %d:%d:%d\n",h,mi,sec);
                             uart_printf(s2);
-                            ds3231_settime(h,m,sec); // write to DS3231 IC
+                            ds3231_settime(h,mi,sec); // write to DS3231 IC
                             break;
                     case 2: // Get Date & Time
                             print_date_and_time(); 
@@ -1549,11 +1575,11 @@ void execute_single_command(char *s)
                             s1 = strtok(&s[3],sep);
                             h  = atoi(s1);
                             s1 = strtok(NULL ,sep);
-                            m  = atoi(s1);
-                            if ((h < 24) && (m < 60))
+                            mi = atoi(s1);
+                            if ((h < 24) && (mi < 60))
                             {
                                 blank_begin_h = h;
-                                blank_begin_m = m;
+                                blank_begin_m = mi;
                                 eeprom_write_config(EEP_ADDR_BBEGIN_H,blank_begin_h);
                                 eeprom_write_config(EEP_ADDR_BBEGIN_M,blank_begin_m);
                             } // if
@@ -1562,11 +1588,11 @@ void execute_single_command(char *s)
                             s1 = strtok(&s[3],sep);
                             h  = atoi(s1);
                             s1 = strtok(NULL ,sep);
-                            m  = atoi(s1);
-                            if ((h < 24) && (m < 60))
+                            mi = atoi(s1);
+                            if ((h < 24) && (mi < 60))
                             {
                                 blank_end_h = h;
-                                blank_end_m = m;
+                                blank_end_m = mi;
                                 eeprom_write_config(EEP_ADDR_BEND_H,blank_end_h);
                                 eeprom_write_config(EEP_ADDR_BEND_M,blank_end_m);
                             } // if
@@ -1583,7 +1609,7 @@ void execute_single_command(char *s)
                     s1 = strtok(&s[3],sep);
                     d  = atoi(s1);
                     s1 = strtok(NULL ,sep);
-                    m  = atoi(s1);
+                    mo = atoi(s1);
                     s1 = strtok(NULL ,sep);
                     y  = atoi(s1);
                     // Second part is the time from the ESP8266
@@ -1596,7 +1622,7 @@ void execute_single_command(char *s)
                         else h++;
                     } // if
                     s1  = strtok(NULL ,sep);
-                    m   = atoi(s1);
+                    mi  = atoi(s1);
                     s1  = strtok(NULL ,sep);
                     sec = atoi(s1);
                     if (sec == 59) // add 1 second for the transmit delay
@@ -1604,18 +1630,18 @@ void execute_single_command(char *s)
                     else sec++;
                     if (y > 2020)
                     {   // Valid Date & Time received
-                        ds3231_setdate(d,m,y);   // write to DS3231 IC
-                        ds3231_settime(h,m,sec); // write to DS3231 IC
-                        last_esp8266 = true;     // response was successful
-                        set_col_white = true;    // show briefly on display
-                        esp8266_tmr = 0;         // Reset update timer
+                        ds3231_setdate(d,mo,y);   // write to DS3231 IC
+                        ds3231_settime(h,mi,sec); // write to DS3231 IC
+                        last_esp8266 = true;      // response was successful
+                        set_col_white = true;     // show briefly on display
+                        esp8266_tmr = 0;          // Reset update timer
                     } // if
                     else last_esp8266 = false;   // response not successful
                     uart_printf("Date: ");
-                    print_dow(ds3231_calc_dow(d,m,y));
-                    sprintf(s2," %d-%d-%d ",d,m,y);
+                    print_dow(ds3231_calc_dow(d,mo,y));
+                    sprintf(s2," %d-%d-%d ",d,mo,y);
                     uart_printf(s2);
-                    sprintf(s2,"Time: %d:%d:%d\n",h,m,sec);
+                    sprintf(s2,"Time: %d:%d:%d\n",h,mi,sec);
                     uart_printf(s2);
                     break;
                  } // switch
