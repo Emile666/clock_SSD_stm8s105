@@ -18,7 +18,7 @@
 - 6 = Invert blanking active/not-active signal (on=off, off=on) for 60 seconds.
 - 7 = Test mode for 60 seconds.
 - 8 = Set Blanking-begin time. Use Up, Down, Left, Right, Ok, 0-9 to set a digit.
-- 8 = Set Blanking-end time. Use Up, Down, Left, Right, Ok, 0-9 to set a digit.
+- 9 = Set Blanking-end time. Use Up, Down, Left, Right, Ok, 0-9 to set a digit.
 - \# = Show date & year for 8 seconds.
 
 # Development Environment
